@@ -1,9 +1,63 @@
 export interface Customer {
-  id: string
-  name: string
-  email?: string
-  phone?: string
-  address?: string
+  Id: string
+  DisplayName: string
+  GivenName?: string
+  FamilyName?: string
+  Title?: string
+  CompanyName?: string
+  FullyQualifiedName?: string
+  PrintOnCheckName?: string
+  Active: boolean
+  PrimaryEmailAddr?: {
+    Address: string
+  }
+  PrimaryPhone?: {
+    FreeFormNumber: string
+  }
+  Mobile?: {
+    FreeFormNumber: string
+  }
+  Fax?: {
+    FreeFormNumber: string
+  }
+  BillAddr?: {
+    Id: string
+    Line1?: string
+    Line2?: string
+    Line3?: string
+    City?: string
+    Country?: string
+    CountrySubDivisionCode?: string
+    PostalCode?: string
+  }
+  ShipAddr?: {
+    Id: string
+    Line1?: string
+    Line2?: string
+    Line3?: string
+    City?: string
+    Country?: string
+    CountrySubDivisionCode?: string
+    PostalCode?: string
+  }
+  Balance: number
+  BalanceWithJobs: number
+  CurrencyRef?: {
+    value: string
+    name: string
+  }
+  PrimaryTaxIdentifier?: string
+  SecondaryTaxIdentifier?: string
+  Taxable: boolean
+  PreferredDeliveryMethod?: string
+  Job: boolean
+  BillWithParent: boolean
+  IsProject: boolean
+  SyncToken: string
+  MetaData?: {
+    CreateTime: string
+    LastUpdatedTime: string
+  }
 }
 
 export interface LineItem {

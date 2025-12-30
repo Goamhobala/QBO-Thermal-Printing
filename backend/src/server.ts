@@ -9,6 +9,7 @@
 
 import express from "express";
 import expressSession from "express-session";
+import cors from "cors";
 import dotenv from "dotenv";
 import OAuthClient from "intuit-oauth";
 import path from "path";
@@ -38,6 +39,15 @@ const authUri = oauthClient.authorizeUri({
 // Initialize Express application
 const app = express();
 
+// Configure CORS only in development (separate frontend/backend servers)
+// In production, frontend is served from the same origin (monolith)
+if (process.env.NODE_ENV !== 'production') {
+  app.use(cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    credentials: true, // Allow cookies to be sent with requests
+  }));
+}
+
 // Configure session middleware
 // Sessions store OAuth tokens and company info (realmId)
 app.use(
@@ -48,8 +58,11 @@ app.use(
     saveUninitialized: false, // Don't create session until something stored
     cookie: {
       httpOnly: true, // Prevent client-side JS from accessing cookie
-      secure: false, // Set to true in production with HTTPS
+      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
       sameSite: "lax", // CSRF protection
+      // In development, explicitly set domain to work with Vite proxy on localhost
+      domain: process.env.NODE_ENV === 'production' ? undefined : 'localhost',
+      path: '/', // Cookie available for all paths
     },
   })
 );
@@ -93,8 +106,19 @@ app.get("/redirect", async (req, res)=> {
         req.session.accessToken = tokens.access_token; // Short-lived token for API calls
         req.session.refreshToken = tokens.refresh_token; // Long-lived token to get new access tokens
 
+        console.log('✅ Session saved:', {
+            realmId: req.session.realmId,
+            hasAccessToken: !!req.session.accessToken,
+            sessionID: req.sessionID
+        });
+
         // Redirect back to frontend after successful authentication
-        res.redirect(process.env.FRONTEND_URL!)
+        // In development, this redirects to Vite dev server which proxies API calls to backend
+        // In production, frontend is served from same server (no proxy needed)
+        const redirectUrl = process.env.NODE_ENV === 'production'
+            ? '/'
+            : process.env.FRONTEND_URL!;
+        res.redirect(redirectUrl)
     }
     catch (error){
         console.log(error)
@@ -107,13 +131,38 @@ app.get("/redirect", async (req, res)=> {
 /**
  * GET /customers
  * Fetches all customers from QuickBooks
- * TODO: Replace redirect with proper API call using stored access token
+ * Makes authenticated API call using stored access token from session
  */
-app.get("/customers", (req, res)=>{
-    const baseURL= "https://sandbox-quickbooks.api.intuit.com/v3/company"
-    const queryStatement = "SELECT * FROM Customer"
-    // Redirect to QuickBooks API (for testing - should be replaced with server-side API call)
-    res.redirect(`${baseURL}/${req.session.realmId}/query?query=${queryStatement}`)
+app.get("/customers", async (req, res)=>{
+    // Check if user is authenticated
+    if (!req.session.accessToken || !req.session.realmId) {
+        return res.status(401).json({error: "Not authenticated. Please login first."})
+    }
+
+    try {
+        const baseURL = "https://sandbox-quickbooks.api.intuit.com/v3/company"
+        const queryStatement = "SELECT * FROM Customer"
+        const url = `${baseURL}/${req.session.realmId}/query?query=${encodeURIComponent(queryStatement)}`
+
+        // Make authenticated request to QuickBooks API
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${req.session.accessToken}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        })
+
+        if (!response.ok) {
+            throw new Error(`QuickBooks API error: ${response.status} ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        res.json(data)
+    } catch (error) {
+        console.error("Error fetching customers:", error)
+        res.status(500).json({error: "Failed to fetch customers from QuickBooks"})
+    }
 })
 
 // ==================== SYSTEM ROUTES ====================

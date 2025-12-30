@@ -10,12 +10,29 @@ export default defineConfig({
     },
   },
   server: {
-    host: '127.0.0.1',
+    host: 'localhost',
     port: 5173,
     proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:3000',
+      // Proxy all API routes to the backend server
+      '/login': {
+        target: 'http://localhost:3000',
         changeOrigin: true,
+        cookieDomainRewrite: 'localhost',
+      },
+      '/redirect': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        cookieDomainRewrite: 'localhost',
+      },
+      '/customers': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        cookieDomainRewrite: 'localhost',
+      },
+      '/health': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        cookieDomainRewrite: 'localhost',
       },
     },
   },

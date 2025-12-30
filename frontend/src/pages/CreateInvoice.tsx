@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
-import { LineItem, InvoiceFormData } from '../types'
+import { LineItem, InvoiceFormData, Customer } from '../types'
 import Input from '../components/Input'
 import Select from '../components/Select'
 import Button from '../components/Button'
 import Textarea from '../components/Textarea'
+
+
 
 const CreateInvoice = () => {
   const [formData, setFormData] = useState<InvoiceFormData>({
@@ -25,6 +27,24 @@ const CreateInvoice = () => {
   const [totalVat, setTotalVat] = useState(0)
   const [total, setTotal] = useState(0)
   const [tagInput, setTagInput] = useState('')
+  const [customers, setCustomers] = useState<Customer[]>([])
+
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const response = await fetch("/customers");
+        const data = await response.json();
+        const customerData = data.QueryResponse.Customer || [];
+        setCustomers(customerData);
+        console.log(customerData);
+      }
+      catch (error) {
+        console.error("Error fetching customers:", error);
+      }
+    }
+    fetchCustomers();
+
+  }, [])
 
   // Calculate due date based on terms
   useEffect(() => {
@@ -139,15 +159,16 @@ const CreateInvoice = () => {
             <div className="space-y-4">
               <Select
                 label="Customer"
-                options={[
-                  { value: '', label: 'Add Customer' },
-                  { value: '1', label: 'Blackbird Construction' },
-                  { value: '2', label: 'Sample Customer' }
-                ]}
-                value={formData.customer?.id || ''}
+                options={customers.map(c => ({
+                  value: c.Id,
+                  label: c.DisplayName
+                }))}
+                value={formData.customer?.Id || ''}
                 onChange={(e) => {
-                  // TODO: Load customer data
-                  console.log('Customer selected:', e.target.value)
+                  const selectedCustomer = customers.find(c => c.Id === e.target.value)
+                  if (selectedCustomer) {
+                    setFormData(prev => ({ ...prev, customer: selectedCustomer }))
+                  }
                 }}
               />
             </div>
