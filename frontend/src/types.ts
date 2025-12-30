@@ -36,6 +36,10 @@ export interface Invoice {
   noteToCustomer?: string
   memoOnStatement?: string
   attachments: File[]
+  status: 'paid' | 'unpaid' | 'overdue' | 'deposited'
+  amountPaid?: number
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface InvoiceFormData {

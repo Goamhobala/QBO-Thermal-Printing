@@ -5,13 +5,16 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
-    "start": "node dist/server.js"
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:backend": "tsc",
+    "build:frontend": "cd ../frontend && npm install && npm run build",
+    "start": "NODE_ENV=production node dist/server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.22.1",
+    "express-session": "^1.18.2",
     "intuit-oauth": "^4.2.2"
   },
   "devDependencies": {

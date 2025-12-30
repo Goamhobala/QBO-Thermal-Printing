@@ -1,0 +1,358 @@
+import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Search, Filter, ChevronDown, Printer, Edit, DollarSign, ChevronLeft, ChevronRight } from 'lucide-react'
+import { mockInvoices } from '../data/mockInvoices'
+import { cn } from '../lib/utils'
+
+const ITEMS_PER_PAGE = 10
+
+export default function InvoicesList() {
+  const navigate = useNavigate()
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [customerFilter, setCustomerFilter] = useState<string>('all')
+  const [dateFilter, setDateFilter] = useState<string>('last-12-months')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [showFilters, setShowFilters] = useState(false)
+
+  // Get unique customers for filter
+  const uniqueCustomers = useMemo(() => {
+    const customers = new Set(mockInvoices.map(inv => inv.customer?.name).filter(Boolean))
+    return Array.from(customers)
+  }, [])
+
+  // Filter invoices
+  const filteredInvoices = useMemo(() => {
+    return mockInvoices.filter(invoice => {
+      // Search filter
+      const matchesSearch = searchTerm === '' ||
+        invoice.invoiceNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.customer?.name.toLowerCase().includes(searchTerm.toLowerCase())
+
+      // Status filter
+      const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter
+
+      // Customer filter
+      const matchesCustomer = customerFilter === 'all' || invoice.customer?.name === customerFilter
+
+      // Date filter (simplified - you can enhance this)
+      const matchesDate = true // For now, showing all dates
+
+      return matchesSearch && matchesStatus && matchesCustomer && matchesDate
+    })
+  }, [searchTerm, statusFilter, customerFilter, dateFilter])
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    const overdue = filteredInvoices.filter(inv => inv.status === 'overdue')
+      .reduce((sum, inv) => sum + inv.balanceDue, 0)
+
+    const notDueYet = filteredInvoices.filter(inv => inv.status === 'unpaid')
+      .reduce((sum, inv) => sum + inv.balanceDue, 0)
+
+    const paid = filteredInvoices.filter(inv => inv.status === 'paid')
+      .reduce((sum, inv) => sum + inv.total, 0)
+
+    const deposited = filteredInvoices.filter(inv => inv.status === 'deposited')
+      .reduce((sum, inv) => sum + (inv.amountPaid || 0), 0)
+
+    return { overdue, notDueYet, paid, deposited }
+  }, [filteredInvoices])
+
+  // Pagination
+  const totalPages = Math.ceil(filteredInvoices.length / ITEMS_PER_PAGE)
+  const paginatedInvoices = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE
+    return filteredInvoices.slice(start, start + ITEMS_PER_PAGE)
+  }, [filteredInvoices, currentPage])
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'paid': return 'text-green-700 bg-green-50 border-green-200'
+      case 'overdue': return 'text-orange-700 bg-orange-50 border-orange-200'
+      case 'unpaid': return 'text-gray-700 bg-gray-50 border-gray-200'
+      case 'deposited': return 'text-blue-700 bg-blue-50 border-blue-200'
+      default: return 'text-gray-700 bg-gray-50 border-gray-200'
+    }
+  }
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr)
+    return date.toLocaleDateString('en-ZA', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      .replace(/\//g, '/')
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Invoices</h1>
+        </div>
+
+        {/* Stats Cards - Compact */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-3">
+            <p className="text-xs text-gray-600 mb-1">Overdue</p>
+            <p className="text-lg font-bold text-orange-600">R {stats.overdue.toFixed(2)}</p>
+          </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-3">
+            <p className="text-xs text-gray-600 mb-1">Not due yet</p>
+            <p className="text-lg font-bold text-gray-900">R {stats.notDueYet.toFixed(2)}</p>
+          </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-3">
+            <p className="text-xs text-gray-600 mb-1">Paid (Last 30 days)</p>
+            <p className="text-lg font-bold text-green-600">R {stats.paid.toFixed(2)}</p>
+          </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-3">
+            <p className="text-xs text-gray-600 mb-1">Deposited</p>
+            <p className="text-lg font-bold text-blue-600">R {stats.deposited.toFixed(2)}</p>
+          </div>
+        </div>
+
+        {/* Search and Filters Bar */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Search */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <input
+                type="text"
+                placeholder="Search invoices by number or customer..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* Filter Toggle */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Filter className="h-4 w-4" />
+              <span>Filters</span>
+              <ChevronDown className={cn("h-4 w-4 transition-transform", showFilters && "rotate-180")} />
+            </button>
+
+            {/* Big Create Invoice Button */}
+            <button
+              onClick={() => navigate('/create-invoice')}
+              className="px-8 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg shadow-sm"
+            >
+              Create invoice
+            </button>
+          </div>
+
+          {/* Expandable Filters */}
+          {showFilters && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-200">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="all">All</option>
+                  <option value="paid">Paid</option>
+                  <option value="unpaid">Unpaid</option>
+                  <option value="overdue">Overdue</option>
+                  <option value="deposited">Deposited</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
+                <select
+                  value={customerFilter}
+                  onChange={(e) => setCustomerFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="all">All Customers</option>
+                  {uniqueCustomers.map(customer => (
+                    <option key={customer} value={customer}>{customer}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
+                <select
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="last-12-months">Last 12 months</option>
+                  <option value="last-30-days">Last 30 days</option>
+                  <option value="last-90-days">Last 90 days</option>
+                  <option value="this-year">This year</option>
+                  <option value="custom">Custom range</option>
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Invoices Table */}
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    No.
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Customer
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Amount
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {paginatedInvoices.map((invoice) => (
+                  <tr key={invoice.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatDate(invoice.invoiceDate)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {invoice.invoiceNo}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {invoice.customer?.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      R {invoice.total.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={cn(
+                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border capitalize",
+                        getStatusColor(invoice.status)
+                      )}>
+                        {invoice.status === 'overdue' && `Overdue on ${formatDate(invoice.dueDate)}`}
+                        {invoice.status === 'paid' && 'Paid'}
+                        {invoice.status === 'unpaid' && 'Unpaid'}
+                        {invoice.status === 'deposited' && 'Deposited'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => console.log('Print invoice:', invoice.invoiceNo)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                          title="Print Receipt"
+                        >
+                          <Printer className="h-4 w-4" />
+                          <span className="text-xs">Print</span>
+                        </button>
+                        <button
+                          onClick={() => navigate(`/edit-invoice/${invoice.id}`)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-green-600 hover:text-green-800 hover:bg-green-50 rounded transition-colors"
+                          title="Edit Invoice"
+                        >
+                          <Edit className="h-4 w-4" />
+                          <span className="text-xs">Edit</span>
+                        </button>
+                        <button
+                          onClick={() => console.log('Receive payment:', invoice.invoiceNo)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded transition-colors"
+                          title="Receive Payment"
+                        >
+                          <DollarSign className="h-4 w-4" />
+                          <span className="text-xs">Payment</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    Showing <span className="font-medium">{((currentPage - 1) * ITEMS_PER_PAGE) + 1}</span> to{' '}
+                    <span className="font-medium">
+                      {Math.min(currentPage * ITEMS_PER_PAGE, filteredInvoices.length)}
+                    </span> of{' '}
+                    <span className="font-medium">{filteredInvoices.length}</span> results
+                  </p>
+                </div>
+                <div>
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={cn(
+                          "relative inline-flex items-center px-4 py-2 border text-sm font-medium",
+                          page === currentPage
+                            ? "z-10 bg-green-50 border-green-500 text-green-600"
+                            : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                        )}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* No results */}
+        {filteredInvoices.length === 0 && (
+          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+            <p className="text-gray-500">No invoices found matching your filters.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

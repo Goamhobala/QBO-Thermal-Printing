@@ -1,0 +1,17 @@
+{
+  "name": "qbo-thermal-printing",
+  "version": "1.0.0",
+  "description": "QuickBooks Online invoice creation and thermal printing for Timber 4 U CC",
+  "private": true,
+  "scripts": {
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev": "npm run dev:backend & npm run dev:frontend",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "build": "cd backend && npm run build",
+    "start": "cd backend && npm start"
+  },
+  "keywords": ["quickbooks", "thermal-printing", "invoices"],
+  "author": "",
+  "license": "MIT"
+}
