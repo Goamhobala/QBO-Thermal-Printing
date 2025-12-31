@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react'
-import { LineItem, InvoiceFormData, Customer } from '../types'
+import { LineItem, InvoiceFormData } from '../types'
+import { useCustomer, useItem } from '../contexts'
 import Input from '../components/Input'
 import Select from '../components/Select'
 import Button from '../components/Button'
 import Textarea from '../components/Textarea'
+import { ItemCombobox } from '../components/ItemCombobox'
 
 
 
 const CreateInvoice = () => {
+  const { customers, loading: customersLoading, error: customersError, fetchCustomers } = useCustomer()
+  const { items, loading: itemsLoading, error: itemsError, fetchItems } = useItem()
+
   const [formData, setFormData] = useState<InvoiceFormData>({
     customer: null,
     invoiceNo: '44539',
@@ -27,24 +32,11 @@ const CreateInvoice = () => {
   const [totalVat, setTotalVat] = useState(0)
   const [total, setTotal] = useState(0)
   const [tagInput, setTagInput] = useState('')
-  const [customers, setCustomers] = useState<Customer[]>([])
 
   useEffect(() => {
-    const fetchCustomers = async () => {
-      try {
-        const response = await fetch("/customers");
-        const data = await response.json();
-        const customerData = data.QueryResponse.Customer || [];
-        setCustomers(customerData);
-        console.log(customerData);
-      }
-      catch (error) {
-        console.error("Error fetching customers:", error);
-      }
-    }
-    fetchCustomers();
-
-  }, [])
+    fetchCustomers()
+    fetchItems()
+  }, [fetchCustomers, fetchItems])
 
   // Calculate due date based on terms
   useEffect(() => {
@@ -99,6 +91,19 @@ const CreateInvoice = () => {
         if (item.id === id) {
           const updated = { ...item, [field]: value }
 
+          // If selecting a product from QBO items, populate fields
+          if (field === 'itemId' && typeof value === 'string') {
+            const selectedItem = items.find(i => i.Id === value)
+            if (selectedItem) {
+              updated.productName = selectedItem.Name
+              updated.sku = selectedItem.Sku || ''
+              updated.description = selectedItem.Description || ''
+              updated.rate = selectedItem.UnitPrice || 0
+              updated.amount = updated.quantity * updated.rate
+              updated.vatAmount = updated.amount * 0.15
+            }
+          }
+
           // Recalculate amount and VAT
           if (field === 'quantity' || field === 'rate') {
             const qty = field === 'quantity' ? Number(value) : item.quantity
@@ -142,6 +147,19 @@ const CreateInvoice = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {customersError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+          <p className="font-medium">Error loading customers</p>
+          <p className="text-sm">{customersError}</p>
+        </div>
+      )}
+      {itemsError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+          <p className="font-medium">Error loading items</p>
+          <p className="text-sm">{itemsError}</p>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit}>
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 p-6">
@@ -170,7 +188,9 @@ const CreateInvoice = () => {
                     setFormData(prev => ({ ...prev, customer: selectedCustomer }))
                   }
                 }}
+                disabled={customersLoading}
               />
+              {customersLoading && <p className="text-sm text-gray-500">Loading customers...</p>}
             </div>
 
             {/* Right Column */}
@@ -282,6 +302,7 @@ const CreateInvoice = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="w-12 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">Select Item</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product/service</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
@@ -296,6 +317,14 @@ const CreateInvoice = () => {
                 {formData.lineItems.map((item, index) => (
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-500">{index + 1}</td>
+                    <td className="px-4 py-3">
+                      <ItemCombobox
+                        items={items}
+                        value={item.itemId}
+                        onValueChange={(value) => updateLineItem(item.id, 'itemId', value)}
+                        disabled={itemsLoading}
+                      />
+                    </td>
                     <td className="px-4 py-3">
                       <input
                         type="text"
@@ -373,6 +402,7 @@ const CreateInvoice = () => {
             >
               Add product or service
             </Button>
+            {itemsLoading && <span className="ml-4 text-sm text-gray-500">Loading items...</span>}
           </div>
         </div>
 

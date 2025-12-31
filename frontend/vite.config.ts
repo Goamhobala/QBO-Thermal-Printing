@@ -29,6 +29,16 @@ export default defineConfig({
         changeOrigin: true,
         cookieDomainRewrite: 'localhost',
       },
+      '/items': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        cookieDomainRewrite: 'localhost',
+      },
+      '/invoices': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        cookieDomainRewrite: 'localhost',
+      },
       '/health': {
         target: 'http://localhost:3000',
         changeOrigin: true,

@@ -60,8 +60,43 @@ export interface Customer {
   }
 }
 
+// QuickBooks Item (Product/Service from QBO)
+export interface Item {
+  Id: string
+  Name: string
+  FullyQualifiedName: string
+  domain: string
+  Type: string
+  Active: boolean
+  sparse: boolean
+  Sku?: string
+  Description?: string
+  UnitPrice?: number
+  PurchaseCost?: number
+  TrackQtyOnHand?: boolean
+  Taxable?: boolean
+  PrintGroupedItems?: boolean
+  ItemGroupDetail?: {
+    ItemGroupLine: Array<{
+      Qty: number
+      ItemRef: {
+        type: string
+        name: string
+        value: string
+      }
+    }>
+  }
+  SyncToken: string
+  MetaData: {
+    CreateTime: string
+    LastUpdatedTime: string
+  }
+}
+
+// Invoice Line Item (used in invoice forms)
 export interface LineItem {
   id: string
+  itemId?: string // Reference to QBOItem.Id
   productName: string
   sku?: string
   description?: string
@@ -110,3 +145,4 @@ export interface InvoiceFormData {
   noteToCustomer: string
   memoOnStatement: string
 }
+

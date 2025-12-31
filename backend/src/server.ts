@@ -126,6 +126,24 @@ app.get("/redirect", async (req, res)=> {
     }
 })
 
+const queryApi = async (queryStatement: string, realmId: string, accessToken: string) => {
+    const baseURL = "https://sandbox-quickbooks.api.intuit.com/v3/company"
+    const url = `${baseURL}/${realmId}/query?query=${encodeURIComponent(queryStatement)}`
+
+    const response = await fetch(url, {
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        }
+    })
+
+    if (!response.ok) {
+        throw new Error(`QuickBooks API error: ${response.status} ${response.statusText}`)
+    }
+
+    return response.json()
+}
 // ==================== QUICKBOOKS API ROUTES ====================
 
 /**
@@ -133,35 +151,57 @@ app.get("/redirect", async (req, res)=> {
  * Fetches all customers from QuickBooks
  * Makes authenticated API call using stored access token from session
  */
-app.get("/customers", async (req, res)=>{
-    // Check if user is authenticated
+app.get("/customers", async (req, res) => {
     if (!req.session.accessToken || !req.session.realmId) {
         return res.status(401).json({error: "Not authenticated. Please login first."})
     }
 
     try {
-        const baseURL = "https://sandbox-quickbooks.api.intuit.com/v3/company"
-        const queryStatement = "SELECT * FROM Customer"
-        const url = `${baseURL}/${req.session.realmId}/query?query=${encodeURIComponent(queryStatement)}`
-
-        // Make authenticated request to QuickBooks API
-        const response = await fetch(url, {
-            headers: {
-                'Authorization': `Bearer ${req.session.accessToken}`,
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
-        })
-
-        if (!response.ok) {
-            throw new Error(`QuickBooks API error: ${response.status} ${response.statusText}`)
-        }
-
-        const data = await response.json()
+        const data = await queryApi(
+            "SELECT * FROM Customer",
+            req.session.realmId,
+            req.session.accessToken
+        )
         res.json(data)
     } catch (error) {
         console.error("Error fetching customers:", error)
         res.status(500).json({error: "Failed to fetch customers from QuickBooks"})
+    }
+})
+
+app.get("/items", async (req, res) => {
+    if (!req.session.accessToken || !req.session.realmId) {
+        return res.status(401).json({error: "Not authenticated. Please login first."})
+    }
+
+    try {
+        const data = await queryApi(
+            "SELECT * FROM Item",
+            req.session.realmId,
+            req.session.accessToken
+        )
+        res.json(data)
+    } catch (error) {
+        console.error("Error fetching items:", error)
+        res.status(500).json({error: "Failed to fetch items from QuickBooks"})
+    }
+})
+
+app.get("/invoices", async (req, res)=>{
+    if (!req.session.accessToken || !req.session.realmId){
+        return res.status(401).json({error: "Not authenticated. Please login first."})
+    }
+    try{
+        const data = await queryApi(
+            "SELECT * FROM Invoice",
+            req.session.realmId,
+            req.session.accessToken
+        )
+        res.json(data)
+    }
+    catch (error){
+        console.error("Error fetching invoices:", error)
+        res.status(500).json({error: "Failed to fetch invoices from QuickBooks"})
     }
 })
 
