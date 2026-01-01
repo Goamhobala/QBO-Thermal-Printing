@@ -19,11 +19,20 @@ import path from "path";
 // Load environment variables from .env file
 dotenv.config();
 
+// Determine QuickBooks API base URL based on environment
+const QBO_ENVIRONMENT = process.env.ENVIRONMENT || 'sandbox';
+const QBO_BASE_URL = QBO_ENVIRONMENT === 'production'
+    ? 'https://quickbooks.api.intuit.com/v3/company'
+    : 'https://sandbox-quickbooks.api.intuit.com/v3/company';
+
+console.log(`🔧 QuickBooks Environment: ${QBO_ENVIRONMENT}`);
+console.log(`🔗 QuickBooks Base URL: ${QBO_BASE_URL}`);
+
 // Initialize QuickBooks OAuth client with credentials from environment variables
 const oauthClient = new OAuthClient({
     clientId: process.env.CLIENT_ID!,
     clientSecret: process.env.CLIENT_SECRET!,
-    environment: process.env.ENVIRONMENT!, // 'sandbox' or 'production'
+    environment: QBO_ENVIRONMENT, // 'sandbox' or 'production'
     redirectUri: process.env.REDIRECT_URI!, // Where QuickBooks redirects after auth
 })
 
@@ -130,8 +139,7 @@ app.get("/redirect", async (req, res)=> {
 })
 
 const queryApi = async (queryStatement: string, realmId: string, accessToken: string) => {
-    const baseURL = "https://sandbox-quickbooks.api.intuit.com/v3/company"
-    const url = `${baseURL}/${realmId}/query?query=${encodeURIComponent(queryStatement)}`
+    const url = `${QBO_BASE_URL}/${realmId}/query?query=${encodeURIComponent(queryStatement)}`
 
     const response = await fetch(url, {
         headers: {
@@ -149,8 +157,7 @@ const queryApi = async (queryStatement: string, realmId: string, accessToken: st
 }
 
 const createEntity = async (entityType: string, entityData: any, realmId: string, accessToken: string) => {
-    const baseURL = "https://sandbox-quickbooks.api.intuit.com/v3/company"
-    const url = `${baseURL}/${realmId}/${entityType}`
+    const url = `${QBO_BASE_URL}/${realmId}/${entityType}`
 
     const response = await fetch(url, {
         method: 'POST',
