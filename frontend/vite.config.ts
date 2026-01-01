@@ -34,6 +34,16 @@ export default defineConfig({
         changeOrigin: true,
         cookieDomainRewrite: 'localhost',
       },
+      '/taxrates': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        cookieDomainRewrite: 'localhost',
+      },
+      '/taxcodes': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        cookieDomainRewrite: 'localhost',
+      },
       '/invoices': {
         target: 'http://localhost:3000',
         changeOrigin: true,

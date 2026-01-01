@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { LineItem, InvoiceFormData } from '../types'
-import { useCustomer, useItem } from '../contexts'
+import { useCustomer, useItem, useTaxCode, useInvoice } from '../contexts'
+import { useCreateInvoice } from '../hooks/useCreateInvoice'
 import Input from '../components/Input'
 import Select from '../components/Select'
 import Button from '../components/Button'
@@ -8,14 +10,40 @@ import Textarea from '../components/Textarea'
 import { ItemCombobox } from '../components/ItemCombobox'
 
 
-
 const CreateInvoice = () => {
-  const { customers, loading: customersLoading, error: customersError, fetchCustomers } = useCustomer()
-  const { items, loading: itemsLoading, error: itemsError, fetchItems } = useItem()
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const isEditMode = Boolean(id)
+
+  const { data: customers, loading: customersLoading, error: customersError, fetchData: fetchCustomers } = useCustomer()
+  const { data: items, loading: itemsLoading, error: itemsError, fetchData: fetchItems } = useItem()
+  const { data: taxCodes, loading: taxCodesLoading, error: taxCodesError, fetchData: fetchTaxCodes } = useTaxCode()
+  const { data: invoices } = useInvoice()
+  const { createInvoice, loading: createLoading, error: createError } = useCreateInvoice()
+
+  // Filter to only show active, non-hidden tax codes
+  const availableTaxCodes = useMemo(() => {
+    return taxCodes.filter(tc => tc.Active && !tc.Hidden)
+  }, [taxCodes])
+
+  // Calculate next invoice number
+  const nextInvoiceNumber = useMemo(() => {
+    if (invoices.length === 0) return '1'
+
+    // Extract numeric invoice numbers and find the max
+    const invoiceNumbers = invoices
+      .map(inv => parseInt(inv.DocNumber))
+      .filter(num => !isNaN(num))
+
+    if (invoiceNumbers.length === 0) return '1'
+
+    const maxNumber = Math.max(...invoiceNumbers)
+    return String(maxNumber + 1)
+  }, [invoices])
 
   const [formData, setFormData] = useState<InvoiceFormData>({
     customer: null,
-    invoiceNo: '44539',
+    invoiceNo: "",
     terms: 'Net 30',
     invoiceDate: new Date().toISOString().split('T')[0],
     dueDate: '',
@@ -36,7 +64,15 @@ const CreateInvoice = () => {
   useEffect(() => {
     fetchCustomers()
     fetchItems()
-  }, [fetchCustomers, fetchItems])
+    fetchTaxCodes()
+  }, [fetchCustomers, fetchItems, fetchTaxCodes])
+
+  // Update invoice number when creating a new invoice
+  useEffect(() => {
+    if (!isEditMode && nextInvoiceNumber) {
+      setFormData(prev => ({ ...prev, invoiceNo: nextInvoiceNumber }))
+    }
+  }, [isEditMode, nextInvoiceNumber])
 
   // Calculate due date based on terms
   useEffect(() => {
@@ -61,6 +97,13 @@ const CreateInvoice = () => {
   }, [formData.lineItems])
 
   const addLineItem = () => {
+    // Find default tax code (15% SA for South Africa)
+    const defaultTaxCode = availableTaxCodes.find(tc =>
+      tc.Name.toLowerCase().includes('sa') ||
+      tc.Name.toLowerCase().includes('15') ||
+      tc.Description?.toLowerCase().includes('south africa')
+    )
+
     const newItem: LineItem = {
       id: Date.now().toString(),
       productName: '',
@@ -69,7 +112,8 @@ const CreateInvoice = () => {
       quantity: 1,
       rate: 0,
       amount: 0,
-      vatAmount: 0
+      vatAmount: 0,
+      taxRateId: defaultTaxCode?.Id || availableTaxCodes[0]?.Id || undefined
     }
     setFormData(prev => ({
       ...prev,
@@ -99,17 +143,27 @@ const CreateInvoice = () => {
               updated.sku = selectedItem.Sku || ''
               updated.description = selectedItem.Description || ''
               updated.rate = selectedItem.UnitPrice || 0
-              updated.amount = updated.quantity * updated.rate
-              updated.vatAmount = updated.amount * 0.15
             }
           }
 
-          // Recalculate amount and VAT
-          if (field === 'quantity' || field === 'rate') {
+          // Recalculate amount and VAT when quantity, rate, or tax rate changes
+          if (field === 'quantity' || field === 'rate' || field === 'taxRateId') {
             const qty = field === 'quantity' ? Number(value) : item.quantity
             const rate = field === 'rate' ? Number(value) : item.rate
+            const taxCodeId = field === 'taxRateId' ? String(value) : item.taxRateId
+
             updated.amount = qty * rate
-            updated.vatAmount = updated.amount * 0.15 // 15% VAT for South Africa
+
+            // Find the selected tax code and calculate VAT
+            const selectedTaxCode = availableTaxCodes.find(tc => tc.Id === taxCodeId)
+            if (selectedTaxCode) {
+              // For South Africa, use 15% VAT (hardcoded for now)
+              // TODO: Parse tax rate from SalesTaxRateList if needed
+              const taxRateDecimal = 0.15 // 15% VAT
+              updated.vatAmount = updated.amount * taxRateDecimal
+            } else {
+              updated.vatAmount = 0
+            }
           }
 
           return updated
@@ -141,8 +195,20 @@ const CreateInvoice = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('Form submitted:', formData)
-    // TODO: Send to API
+
+    if (isEditMode) {
+      // TODO: Implement update logic later
+      console.log('Update invoice:', formData)
+      return
+    }
+
+    // Create new invoice
+    const result = await createInvoice(formData)
+
+    if (result) {
+      // Success! Navigate back to invoice list
+      navigate('/invoices')
+    }
   }
 
   return (
@@ -157,6 +223,18 @@ const CreateInvoice = () => {
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
           <p className="font-medium">Error loading items</p>
           <p className="text-sm">{itemsError}</p>
+        </div>
+      )}
+      {taxCodesError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+          <p className="font-medium">Error loading tax codes</p>
+          <p className="text-sm">{taxCodesError}</p>
+        </div>
+      )}
+      {createError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+          <p className="font-medium">Error creating invoice</p>
+          <p className="text-sm">{createError}</p>
         </div>
       )}
 
@@ -177,12 +255,19 @@ const CreateInvoice = () => {
             <div className="space-y-4">
               <Select
                 label="Customer"
-                options={customers.map(c => ({
-                  value: c.Id,
-                  label: c.DisplayName
-                }))}
+                options={[
+                  { value: '', label: 'Select a customer...' },
+                  ...customers.map(c => ({
+                    value: c.Id,
+                    label: c.DisplayName
+                  }))
+                ]}
                 value={formData.customer?.Id || ''}
                 onChange={(e) => {
+                  if (e.target.value === '') {
+                    setFormData(prev => ({ ...prev, customer: null }))
+                    return
+                  }
                   const selectedCustomer = customers.find(c => c.Id === e.target.value)
                   if (selectedCustomer) {
                     setFormData(prev => ({ ...prev, customer: selectedCustomer }))
@@ -198,8 +283,10 @@ const CreateInvoice = () => {
               <div className="grid grid-cols-2 gap-4">
                 <Input
                   label="Invoice no."
-                  value={formData.invoiceNo}
+                  value={isEditMode ? formData.invoiceNo : nextInvoiceNumber}
                   onChange={(e) => setFormData(prev => ({ ...prev, invoiceNo: e.target.value }))}
+                  disabled={!isEditMode}
+                  placeholder={!isEditMode ? "Auto-generated" : ""}
                 />
                 <Select
                   label="Terms"
@@ -308,6 +395,7 @@ const CreateInvoice = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                   <th className="w-24 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
                   <th className="w-32 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
+                  <th className="w-40 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tax Rate</th>
                   <th className="w-32 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                   <th className="w-32 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">VAT</th>
                   <th className="w-12 px-4 py-3"></th>
@@ -371,6 +459,21 @@ const CreateInvoice = () => {
                         min="0"
                         step="0.01"
                       />
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={item.taxRateId || ''}
+                        onChange={(e) => updateLineItem(item.id, 'taxRateId', e.target.value)}
+                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        disabled={taxCodesLoading}
+                      >
+                        <option value="">Select tax code...</option>
+                        {availableTaxCodes.map(taxCode => (
+                          <option key={taxCode.Id} value={taxCode.Id}>
+                            {taxCode.Name} - {taxCode.Description}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900">
                       R{item.amount.toFixed(2)}
@@ -472,8 +575,9 @@ const CreateInvoice = () => {
                 type="submit"
                 className="w-full"
                 size="lg"
+                disabled={createLoading || customersLoading || itemsLoading || taxCodesLoading}
               >
-                Save Invoice
+                {createLoading ? 'Creating Invoice...' : isEditMode ? 'Update Invoice' : 'Create Invoice'}
               </Button>
             </div>
           </div>

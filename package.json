@@ -11,7 +11,14 @@
     "build": "cd backend && npm run build",
     "start": "cd backend && npm start"
   },
-  "keywords": ["quickbooks", "thermal-printing", "invoices"],
+  "keywords": [
+    "quickbooks",
+    "thermal-printing",
+    "invoices"
+  ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "uuid": "^13.0.0"
+  }
 }

@@ -93,6 +93,67 @@ export interface Item {
   }
 }
 
+// QuickBooks TaxRate (for VAT/Sales Tax)
+export interface TaxRate {
+  Id: string
+  Name: string
+  Description?: string
+  Active: boolean
+  RateValue: number
+  AgencyRef?: {
+    value: string
+    name: string
+  }
+  SpecialTaxType?: string
+  DisplayType?: string
+  EffectiveTaxRate?: Array<{
+    RateValue: number
+    EffectiveDate: string
+  }>
+  SyncToken: string
+  MetaData: {
+    CreateTime: string
+    LastUpdatedTime: string
+  }
+}
+
+// QuickBooks TaxCode (used in invoices)
+export interface TaxCode {
+  Id: string
+  Name: string
+  Description?: string
+  Active: boolean
+  Hidden?: boolean
+  Taxable?: boolean
+  TaxGroup?: boolean
+  SalesTaxRateList?: {
+    TaxRateDetail: Array<{
+      TaxRateRef: {
+        value: string
+        name: string
+      }
+      TaxTypeApplicable: string
+      TaxOrder: number
+    }>
+  }
+  PurchaseTaxRateList?: {
+    TaxRateDetail: Array<{
+      TaxRateRef: {
+        value: string
+        name: string
+      }
+      TaxTypeApplicable: string
+      TaxOrder: number
+    }>
+  }
+  TaxCodeConfigType?: string
+  SyncToken: string
+  MetaData: {
+    CreateTime: string
+    LastUpdatedTime: string
+  }
+}
+
 // Invoice Line Item (used in invoice forms)
 export interface LineItem {
   id: string
@@ -104,6 +165,7 @@ export interface LineItem {
   rate: number
   amount: number
   vatAmount: number
+  taxRateId?: string // Reference to TaxRate.Id
 }
 
 // QuickBooks Invoice Response (from QBO API)

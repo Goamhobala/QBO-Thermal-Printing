@@ -67,6 +67,9 @@ app.use(
   })
 );
 
+// Parse JSON request bodies
+app.use(express.json());
+
 // ==================== AUTHENTICATION ROUTES ====================
 
 /**
@@ -144,6 +147,28 @@ const queryApi = async (queryStatement: string, realmId: string, accessToken: st
 
     return response.json()
 }
+
+const createEntity = async (entityType: string, entityData: any, realmId: string, accessToken: string) => {
+    const baseURL = "https://sandbox-quickbooks.api.intuit.com/v3/company"
+    const url = `${baseURL}/${realmId}/${entityType}`
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(entityData)
+    })
+
+    if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`QuickBooks API error: ${response.status} ${response.statusText} - ${errorText}`)
+    }
+
+    return response.json()
+}
 // ==================== QUICKBOOKS API ROUTES ====================
 
 /**
@@ -187,6 +212,42 @@ app.get("/items", async (req, res) => {
     }
 })
 
+app.get("/taxcodes", async (req, res) => {
+    if (!req.session.accessToken || !req.session.realmId) {
+        return res.status(401).json({error: "Not authenticated. Please login first."})
+    }
+
+    try {
+        const data = await queryApi(
+            "SELECT * FROM TaxCode",
+            req.session.realmId,
+            req.session.accessToken
+        )
+        res.json(data)
+    } catch (error) {
+        console.error("Error fetching tax codes:", error)
+        res.status(500).json({error: "Failed to fetch tax codes from QuickBooks"})
+    }
+})
+
+app.get("/taxrates", async (req, res) => {
+    if (!req.session.accessToken || !req.session.realmId) {
+        return res.status(401).json({error: "Not authenticated. Please login first."})
+    }
+
+    try {
+        const data = await queryApi(
+            "SELECT * FROM TaxRate",
+            req.session.realmId,
+            req.session.accessToken
+        )
+        res.json(data)
+    } catch (error) {
+        console.error("Error fetching tax rates:", error)
+        res.status(500).json({error: "Failed to fetch tax rates from QuickBooks"})
+    }
+})
+
 app.get("/invoices", async (req, res)=>{
     if (!req.session.accessToken || !req.session.realmId){
         return res.status(401).json({error: "Not authenticated. Please login first."})
@@ -202,6 +263,44 @@ app.get("/invoices", async (req, res)=>{
     catch (error){
         console.error("Error fetching invoices:", error)
         res.status(500).json({error: "Failed to fetch invoices from QuickBooks"})
+    }
+})
+
+/**
+ * POST /invoices
+ * Create a new invoice in QuickBooks
+ */
+app.post("/invoices", async (req, res) => {
+    if (!req.session.accessToken || !req.session.realmId) {
+        return res.status(401).json({ error: "Not authenticated. Please login first." })
+    }
+
+    try {
+        const invoiceData = req.body
+        console.log('Received invoice data:', JSON.stringify(invoiceData, null, 2))
+
+        // Validate required fields
+        if (!invoiceData.CustomerRef || !invoiceData.Line || invoiceData.Line.length === 0) {
+            return res.status(400).json({
+                error: "Invalid invoice data. CustomerRef and at least one Line item are required."
+            })
+        }
+
+        console.log('Sending to QuickBooks API...')
+        const data = await createEntity(
+            "invoice",
+            invoiceData,
+            req.session.realmId,
+            req.session.accessToken
+        )
+
+        console.log('QuickBooks response:', JSON.stringify(data, null, 2))
+        res.json(data)
+    } catch (error) {
+        console.error("Error creating invoice:", error)
+        res.status(500).json({
+            error: error instanceof Error ? error.message : "Failed to create invoice in QuickBooks"
+        })
     }
 })
 
