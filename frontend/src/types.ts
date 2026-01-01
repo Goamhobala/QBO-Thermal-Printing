@@ -106,6 +106,90 @@ export interface LineItem {
   vatAmount: number
 }
 
+// QuickBooks Invoice Response (from QBO API)
+export interface QBOInvoice {
+  Id: string
+  DocNumber: string
+  TxnDate: string
+  DueDate: string
+  domain: string
+  PrintStatus: string
+  TotalAmt: number
+  Balance: number
+  Deposit: number
+  sparse: boolean
+  ApplyTaxAfterDiscount: boolean
+  EmailStatus: string
+  CustomerRef: {
+    value: string
+    name: string
+  }
+  Line: Array<{
+    Id?: string
+    LineNum?: number
+    Description?: string
+    Amount: number
+    DetailType: string
+    SalesItemLineDetail?: {
+      ItemRef: {
+        value: string
+        name: string
+      }
+      Qty?: number
+      UnitPrice?: number
+      TaxCodeRef?: {
+        value: string
+      }
+    }
+    SubTotalLineDetail?: Record<string, unknown>
+  }>
+  TxnTaxDetail?: {
+    TotalTax: number
+  }
+  ProjectRef?: {
+    value: string
+  }
+  LinkedTxn?: Array<unknown>
+  ShipAddr?: {
+    Id: string
+    Line1?: string
+    Line2?: string
+    Line3?: string
+    City?: string
+    CountrySubDivisionCode?: string
+    PostalCode?: string
+    Lat?: string
+    Long?: string
+  }
+  BillAddr?: {
+    Id: string
+    Line1?: string
+    Line2?: string
+    Line3?: string
+    City?: string
+    CountrySubDivisionCode?: string
+    PostalCode?: string
+    Lat?: string
+    Long?: string
+  }
+  CustomerMemo?: {
+    value: string
+  }
+  PrivateNote?: string
+  CustomField?: Array<{
+    DefinitionId: string
+    Type: string
+    Name: string
+    StringValue?: string
+  }>
+  SyncToken: string
+  MetaData: {
+    CreateTime: string
+    LastUpdatedTime: string
+  }
+}
+
+// Local Invoice (used in forms/UI)
 export interface Invoice {
   id?: string
   invoiceNo: string

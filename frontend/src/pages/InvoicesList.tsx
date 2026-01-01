@@ -1,13 +1,23 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Filter, ChevronDown, Printer, Edit, DollarSign, ChevronLeft, ChevronRight } from 'lucide-react'
-import { mockInvoices } from '../data/mockInvoices'
+import { useInvoice } from '../contexts'
 import { cn } from '../lib/utils'
 
 const ITEMS_PER_PAGE = 10
 
+// Helper to determine invoice status based on QBO data
+const getInvoiceStatus = (balance: number, dueDate: string): 'paid' | 'unpaid' | 'overdue' | 'deposited' => {
+  if (balance === 0) return 'paid'
+  const due = new Date(dueDate)
+  const today = new Date()
+  if (due < today) return 'overdue'
+  return 'unpaid'
+}
+
 export default function InvoicesList() {
   const navigate = useNavigate()
+  const { data: qboInvoices, loading, error, fetchData } = useInvoice()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [customerFilter, setCustomerFilter] = useState<string>('all')
@@ -15,46 +25,56 @@ export default function InvoicesList() {
   const [currentPage, setCurrentPage] = useState(1)
   const [showFilters, setShowFilters] = useState(false)
 
+  // Fetch invoices on mount
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
   // Get unique customers for filter
   const uniqueCustomers = useMemo(() => {
-    const customers = new Set(mockInvoices.map(inv => inv.customer?.name).filter(Boolean))
+    const customers = new Set(qboInvoices.map(inv => inv.CustomerRef.name).filter(Boolean))
     return Array.from(customers)
-  }, [])
+  }, [qboInvoices])
 
   // Filter invoices
   const filteredInvoices = useMemo(() => {
-    return mockInvoices.filter(invoice => {
+    return qboInvoices.filter(invoice => {
       // Search filter
       const matchesSearch = searchTerm === '' ||
-        invoice.invoiceNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invoice.customer?.name.toLowerCase().includes(searchTerm.toLowerCase())
+        invoice.DocNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.CustomerRef.name.toLowerCase().includes(searchTerm.toLowerCase())
 
       // Status filter
-      const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter
+      const status = getInvoiceStatus(invoice.Balance, invoice.DueDate)
+      const matchesStatus = statusFilter === 'all' || status === statusFilter
 
       // Customer filter
-      const matchesCustomer = customerFilter === 'all' || invoice.customer?.name === customerFilter
+      const matchesCustomer = customerFilter === 'all' || invoice.CustomerRef.name === customerFilter
 
       // Date filter (simplified - you can enhance this)
       const matchesDate = true // For now, showing all dates
 
       return matchesSearch && matchesStatus && matchesCustomer && matchesDate
     })
-  }, [searchTerm, statusFilter, customerFilter, dateFilter])
+  }, [qboInvoices, searchTerm, statusFilter, customerFilter])
 
   // Calculate stats
   const stats = useMemo(() => {
-    const overdue = filteredInvoices.filter(inv => inv.status === 'overdue')
-      .reduce((sum, inv) => sum + inv.balanceDue, 0)
+    const overdue = filteredInvoices
+      .filter(inv => getInvoiceStatus(inv.Balance, inv.DueDate) === 'overdue')
+      .reduce((sum, inv) => sum + inv.Balance, 0)
 
-    const notDueYet = filteredInvoices.filter(inv => inv.status === 'unpaid')
-      .reduce((sum, inv) => sum + inv.balanceDue, 0)
+    const notDueYet = filteredInvoices
+      .filter(inv => getInvoiceStatus(inv.Balance, inv.DueDate) === 'unpaid')
+      .reduce((sum, inv) => sum + inv.Balance, 0)
 
-    const paid = filteredInvoices.filter(inv => inv.status === 'paid')
-      .reduce((sum, inv) => sum + inv.total, 0)
+    const paid = filteredInvoices
+      .filter(inv => getInvoiceStatus(inv.Balance, inv.DueDate) === 'paid')
+      .reduce((sum, inv) => sum + inv.TotalAmt, 0)
 
-    const deposited = filteredInvoices.filter(inv => inv.status === 'deposited')
-      .reduce((sum, inv) => sum + (inv.amountPaid || 0), 0)
+    const deposited = filteredInvoices
+      .filter(inv => inv.Deposit > 0)
+      .reduce((sum, inv) => sum + inv.Deposit, 0)
 
     return { overdue, notDueYet, paid, deposited }
   }, [filteredInvoices])
@@ -80,6 +100,36 @@ export default function InvoicesList() {
     const date = new Date(dateStr)
     return date.toLocaleDateString('en-ZA', { day: '2-digit', month: '2-digit', year: 'numeric' })
       .replace(/\//g, '/')
+  }
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading invoices...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-lg border border-red-200 p-8 max-w-md">
+          <h2 className="text-xl font-bold text-red-600 mb-2">Error Loading Invoices</h2>
+          <p className="text-gray-700">{error}</p>
+          <button
+            onClick={() => fetchData()}
+            className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -221,61 +271,64 @@ export default function InvoicesList() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {paginatedInvoices.map((invoice) => (
-                  <tr key={invoice.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatDate(invoice.invoiceDate)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {invoice.invoiceNo}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {invoice.customer?.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      R {invoice.total.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={cn(
-                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border capitalize",
-                        getStatusColor(invoice.status)
-                      )}>
-                        {invoice.status === 'overdue' && `Overdue on ${formatDate(invoice.dueDate)}`}
-                        {invoice.status === 'paid' && 'Paid'}
-                        {invoice.status === 'unpaid' && 'Unpaid'}
-                        {invoice.status === 'deposited' && 'Deposited'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => console.log('Print invoice:', invoice.invoiceNo)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
-                          title="Print Receipt"
-                        >
-                          <Printer className="h-4 w-4" />
-                          <span className="text-xs">Print</span>
-                        </button>
-                        <button
-                          onClick={() => navigate(`/edit-invoice/${invoice.id}`)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-green-600 hover:text-green-800 hover:bg-green-50 rounded transition-colors"
-                          title="Edit Invoice"
-                        >
-                          <Edit className="h-4 w-4" />
-                          <span className="text-xs">Edit</span>
-                        </button>
-                        <button
-                          onClick={() => console.log('Receive payment:', invoice.invoiceNo)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded transition-colors"
-                          title="Receive Payment"
-                        >
-                          <DollarSign className="h-4 w-4" />
-                          <span className="text-xs">Payment</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {paginatedInvoices.map((invoice) => {
+                  const status = getInvoiceStatus(invoice.Balance, invoice.DueDate)
+                  return (
+                    <tr key={invoice.Id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatDate(invoice.TxnDate)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {invoice.DocNumber}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {invoice.CustomerRef.name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        R {invoice.TotalAmt.toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={cn(
+                          "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border capitalize",
+                          getStatusColor(status)
+                        )}>
+                          {status === 'overdue' && `Overdue on ${formatDate(invoice.DueDate)}`}
+                          {status === 'paid' && 'Paid'}
+                          {status === 'unpaid' && 'Unpaid'}
+                          {status === 'deposited' && 'Deposited'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => console.log('Print invoice:', invoice.DocNumber)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                            title="Print Receipt"
+                          >
+                            <Printer className="h-4 w-4" />
+                            <span className="text-xs">Print</span>
+                          </button>
+                          <button
+                            onClick={() => navigate(`/edit-invoice/${invoice.Id}`)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 text-green-600 hover:text-green-800 hover:bg-green-50 rounded transition-colors"
+                            title="Edit Invoice"
+                          >
+                            <Edit className="h-4 w-4" />
+                            <span className="text-xs">Edit</span>
+                          </button>
+                          <button
+                            onClick={() => console.log('Receive payment:', invoice.DocNumber)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded transition-colors"
+                            title="Receive Payment"
+                          >
+                            <DollarSign className="h-4 w-4" />
+                            <span className="text-xs">Payment</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
