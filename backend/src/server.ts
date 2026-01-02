@@ -151,19 +151,28 @@ app.get("/redirect", async (req, res)=> {
         req.session.accessToken = tokens.access_token; // Short-lived token for API calls
         req.session.refreshToken = tokens.refresh_token; // Long-lived token to get new access tokens
 
-        console.log('✅ Session saved:', {
-            realmId: req.session.realmId,
-            hasAccessToken: !!req.session.accessToken,
-            sessionID: req.sessionID
-        });
+        // Explicitly save session before redirecting
+        // This ensures the session is written to the database before we send the response
+        req.session.save((err) => {
+            if (err) {
+                console.error('❌ Session save error:', err);
+                return res.status(500).json({ error: 'Failed to save session' });
+            }
 
-        // Redirect back to frontend after successful authentication
-        // In development, this redirects to Vite dev server which proxies API calls to backend
-        // In production, frontend is served from same server (no proxy needed)
-        const redirectUrl = process.env.NODE_ENV === 'production'
-            ? '/'
-            : process.env.FRONTEND_URL!;
-        res.redirect(redirectUrl)
+            console.log('✅ Session saved:', {
+                realmId: req.session.realmId,
+                hasAccessToken: !!req.session.accessToken,
+                sessionID: req.sessionID
+            });
+
+            // Redirect back to frontend after successful authentication
+            // In development, this redirects to Vite dev server which proxies API calls to backend
+            // In production, frontend is served from same server (no proxy needed)
+            const redirectUrl = process.env.NODE_ENV === 'production'
+                ? '/'
+                : process.env.FRONTEND_URL!;
+            res.redirect(redirectUrl);
+        });
     }
     catch (error){
         console.log(error)
@@ -217,6 +226,14 @@ const createEntity = async (entityType: string, entityData: any, realmId: string
  * Makes authenticated API call using stored access token from session
  */
 app.get("/customers", async (req, res) => {
+    console.log('📊 /customers request:', {
+        hasSession: !!req.session,
+        sessionID: req.sessionID,
+        hasAccessToken: !!req.session.accessToken,
+        hasRealmId: !!req.session.realmId,
+        cookies: req.headers.cookie
+    });
+
     if (!req.session.accessToken || !req.session.realmId) {
         return res.status(401).json({error: "Not authenticated. Please login first."})
     }
