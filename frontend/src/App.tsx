@@ -12,8 +12,8 @@ function App() {
             <InvoiceProvider>
               <div className="min-h-screen">
                 <Routes>
-                  <Route path="/" element={<Navigate to="/invoices" replace />} />
-                  <Route path="/invoices" element={<InvoicesList />} />
+                  <Route path="/" element={<Navigate to="/home" replace />} />
+                  <Route path="/home" element={<InvoicesList />} />
                   <Route path="/create-invoice" element={<CreateInvoice />} />
                   <Route path="/edit-invoice/:id" element={<CreateInvoice />} />
                 </Routes>

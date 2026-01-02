@@ -209,7 +209,7 @@ const CreateInvoice = () => {
     if (result) {
       // Success! Open thermal print and navigate back to invoice list
       openThermalPrint(result.Invoice)
-      navigate('/invoices')
+      navigate('/home')
     }
   }
 
