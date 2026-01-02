@@ -126,8 +126,24 @@ app.get("/redirect", async (req, res)=> {
     }
 
     try {
+        // Construct the full callback URL
+        // In production (Render), req.url only contains path, not full URL
+        // We need to build the complete URL that QuickBooks sent us back to
+        const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
+        const host = req.get('host');
+        const fullUrl = `${protocol}://${host}${req.url}`;
+
+        console.log('🔍 OAuth callback details:', {
+            reqUrl: req.url,
+            protocol,
+            host,
+            fullUrl,
+            hasCode: !!code,
+            hasRealmId: !!realmId
+        });
+
         // Exchange authorization code for access and refresh tokens
-        const authResponse = await oauthClient.createToken(req.url);
+        const authResponse = await oauthClient.createToken(fullUrl);
         const tokens = (authResponse as any).getJson();
 
         // Store tokens and company ID in session for future API calls
