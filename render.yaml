@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: timber4u-qb-thermal
+    env: node
+    region: frankfurt # Choose closest to South Africa (or singapore/oregon)
+    plan: free
+    buildCommand: cd backend && npm install && npm run build
+    startCommand: cd backend && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ENVIRONMENT
+        value: production
+      - key: PORT
+        value: 10000
+      - key: CLIENT_ID
+        sync: false # Set in Render dashboard
+      - key: CLIENT_SECRET
+        sync: false # Set in Render dashboard
+      - key: REDIRECT_URI
+        sync: false # Set in Render dashboard
+      - key: FRONTEND_URL
+        sync: false # Set in Render dashboard
+      - key: SESSION_SECRET
+        sync: false # Set in Render dashboard
+      - key: SUPABASE
+        sync: false # Set in Render dashboard

@@ -9,6 +9,8 @@
 
 import express from "express";
 import expressSession from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import pg from "pg";
 import cors from "cors";
 import dotenv from "dotenv";
 import OAuthClient from "intuit-oauth";
@@ -27,6 +29,15 @@ const QBO_BASE_URL = QBO_ENVIRONMENT === 'production'
 
 console.log(`🔧 QuickBooks Environment: ${QBO_ENVIRONMENT}`);
 console.log(`🔗 QuickBooks Base URL: ${QBO_BASE_URL}`);
+
+// Set up PostgreSQL session store with Supabase
+const PgSession = connectPgSimple(expressSession);
+const pgPool = new pg.Pool({
+    connectionString: process.env.SUPABASE,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined
+});
+
+console.log(`💾 Session Store: ${process.env.SUPABASE ? 'PostgreSQL (Supabase)' : 'Memory'}`);
 
 // Initialize QuickBooks OAuth client with credentials from environment variables
 const oauthClient = new OAuthClient({
@@ -61,6 +72,11 @@ if (process.env.NODE_ENV !== 'production') {
 // Sessions store OAuth tokens and company info (realmId)
 app.use(
   expressSession({
+    store: new PgSession({
+      pool: pgPool, // Use Supabase PostgreSQL connection pool
+      tableName: 'session', // Table to store sessions
+      createTableIfMissing: true, // Auto-create session table
+    }),
     name: "qb_thermal.sid", // Session cookie name
     secret: process.env.SESSION_SECRET!, // Secret for signing session ID cookie
     resave: false, // Don't save session if unmodified
@@ -72,6 +88,7 @@ app.use(
       // In development, explicitly set domain to work with Vite proxy on localhost
       domain: process.env.NODE_ENV === 'production' ? undefined : 'localhost',
       path: '/', // Cookie available for all paths
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     },
   })
 );

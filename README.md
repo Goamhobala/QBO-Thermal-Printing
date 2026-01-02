@@ -2,11 +2,22 @@
 
 A simple web application for creating QuickBooks Online invoices and printing 80mm thermal receipts for Timber 4 U CC.
 
+## 🚀 Quick Production Deployment (100% FREE)
+
+**Ready to deploy?** → See **[QUICK_START.md](QUICK_START.md)** (20-30 minutes, $0/month)
+
+- ✅ **Free hosting**: Render.com (no credit card needed)
+- ✅ **Free database**: Supabase PostgreSQL (for sessions)
+- ✅ **Free monitoring**: UptimeRobot (keep app awake)
+- ✅ **Total cost**: **$0/month**
+
 ## Tech Stack
 
 - **Backend:** Node.js + Express + TypeScript
 - **Frontend:** React 18 + TypeScript + Vite + Tailwind CSS
 - **QBO Integration:** intuit-oauth SDK
+- **Session Storage:** PostgreSQL (Supabase)
+- **Deployment:** Render.com (FREE tier)
 
 ## Project Structure
 
@@ -90,26 +101,70 @@ npm run dev
 - Frontend: http://localhost:5173
 - Backend: http://localhost:3000
 
-## QuickBooks Setup
+## 📚 Documentation
 
-1. Create app at https://developer.intuit.com
-2. Get Client ID and Client Secret
-3. Set Redirect URI to `http://localhost:3000/callback`
-4. Add scopes: `com.intuit.quickbooks.accounting`
+| Document | Purpose | Time |
+|----------|---------|------|
+| **[QUICK_START.md](QUICK_START.md)** | Step-by-step deployment guide (start here!) | 20-30 min |
+| **[RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md)** | Render.com specific deployment guide | Reference |
+| **[DEPLOYMENT.md](DEPLOYMENT.md)** | Detailed production deployment guide | Reference |
+| **[QUICKBOOKS_SETUP.md](QUICKBOOKS_SETUP.md)** | QuickBooks configuration reference | Reference |
+| **[ENVIRONMENT_SETUP.md](ENVIRONMENT_SETUP.md)** | Local development setup | 10 min |
 
 ## Features
 
 - ✅ OAuth authentication with QuickBooks Online
 - ✅ Fetch customers from QBO
 - ✅ Fetch inventory items from QBO
-- ✅ Create invoices in QBO
+- ✅ Create invoices in QBO with tax support
 - ✅ Print 80mm thermal receipts
+- ✅ Session persistence (PostgreSQL)
+- ✅ Production-ready deployment
+
+## Development Setup
+
+See **[ENVIRONMENT_SETUP.md](ENVIRONMENT_SETUP.md)** for local development instructions.
+
+Quick start:
+```bash
+# Backend
+cd backend && npm install && npm run dev
+
+# Frontend
+cd frontend && npm install && npm run dev
+```
+
+## Production Deployment
+
+See **[QUICK_START.md](QUICK_START.md)** for production deployment to Render.com (FREE).
+
+**Summary:**
+1. Push code to GitHub
+2. Deploy to Render.com (FREE, no card)
+3. Configure QuickBooks app settings
+4. Set up UptimeRobot (optional, keeps app awake)
+5. Done! 🎉
+
+**Cost:** $0/month
 
 ## API Endpoints
 
-- `GET /api/customers` - Fetch all customers
-- `GET /api/items` - Fetch inventory items
-- `POST /api/invoices` - Create new invoice
+- `GET /login` - Initiate QuickBooks OAuth
+- `GET /redirect` - OAuth callback
+- `GET /customers` - Fetch all customers
+- `GET /items` - Fetch inventory items
+- `GET /taxcodes` - Fetch tax codes
+- `GET /taxrates` - Fetch tax rates
+- `POST /invoices` - Create new invoice
+- `GET /invoices` - Fetch all invoices
+- `GET /health` - Health check
+
+## Legal Documents (for QuickBooks)
+
+- `/privacy-policy.html` - Privacy Policy (POPIA compliant)
+- `/end-user-agreement.html` - End User Agreement
+
+**Important:** Add your actual contact information to these files before deploying.
 
 ## License
 

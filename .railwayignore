@@ -1,0 +1,29 @@
+# Railway ignore file - similar to .gitignore
+
+# Development files
+node_modules/
+*.log
+npm-debug.log*
+
+# Environment files (will be set in Railway dashboard)
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+
+# Build (will be built on Railway)
+backend/dist/
+frontend/dist/
