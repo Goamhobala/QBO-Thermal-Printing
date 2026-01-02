@@ -84,7 +84,7 @@ app.use(
     cookie: {
       httpOnly: true, // Prevent client-side JS from accessing cookie
       secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-      sameSite: "lax", // CSRF protection
+      sameSite: 'lax', // CSRF protection - 'lax' works for same-site and OAuth redirects
       // In development, explicitly set domain to work with Vite proxy on localhost
       domain: process.env.NODE_ENV === 'production' ? undefined : 'localhost',
       path: '/', // Cookie available for all paths
@@ -229,6 +229,7 @@ app.get("/customers", async (req, res) => {
     console.log('📊 /customers request:', {
         hasSession: !!req.session,
         sessionID: req.sessionID,
+        session: req.session,
         hasAccessToken: !!req.session.accessToken,
         hasRealmId: !!req.session.realmId,
         cookies: req.headers.cookie

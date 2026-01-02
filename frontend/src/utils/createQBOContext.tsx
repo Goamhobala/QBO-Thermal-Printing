@@ -33,7 +33,9 @@ export const createQBOContext = <T,>({ endpoint, dataKey, contextName }: CreateQ
       setError(null)
 
       try {
-        const response = await fetch(endpoint)
+        const response = await fetch(endpoint, {
+          credentials: 'include' // Include cookies in the request
+        })
 
         if (!response.ok) {
           throw new Error(`Failed to fetch ${contextName}: ${response.statusText}`)
