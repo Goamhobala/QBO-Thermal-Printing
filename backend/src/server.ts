@@ -312,6 +312,14 @@ app.get("/redirect", async (req, res)=> {
 const queryApi = async (queryStatement: string, realmId: string, accessToken: string) => {
     const url = `${QBO_BASE_URL}/${realmId}/query?query=${encodeURIComponent(queryStatement)}`
 
+    console.log('🔍 QuickBooks API request:', {
+        url,
+        realmId,
+        hasAccessToken: !!accessToken,
+        tokenPrefix: accessToken?.substring(0, 20) + '...',
+        query: queryStatement
+    });
+
     const response = await fetch(url, {
         headers: {
             'Authorization': `Bearer ${accessToken}`,
@@ -321,7 +329,14 @@ const queryApi = async (queryStatement: string, realmId: string, accessToken: st
     })
 
     if (!response.ok) {
-        throw new Error(`QuickBooks API error: ${response.status} ${response.statusText}`)
+        const errorBody = await response.text();
+        console.error('❌ QuickBooks API error:', {
+            status: response.status,
+            statusText: response.statusText,
+            errorBody,
+            url
+        });
+        throw new Error(`QuickBooks API error: ${response.status} ${response.statusText} - ${errorBody}`)
     }
 
     return response.json()
@@ -448,7 +463,20 @@ app.get("/taxrates", async (req, res) => {
 })
 
 app.get("/invoices", async (req, res)=>{
+    console.log('📊 /invoices request:', {
+        hasSession: !!req.session,
+        sessionID: req.sessionID,
+        hasAccessToken: !!req.session.accessToken,
+        hasRealmId: !!req.session.realmId,
+        realmId: req.session.realmId,
+        cookies: req.headers.cookie
+    });
+
     if (!req.session.accessToken || !req.session.realmId){
+        console.error('❌ Authentication check failed:', {
+            hasAccessToken: !!req.session.accessToken,
+            hasRealmId: !!req.session.realmId
+        });
         return res.status(401).json({error: "Not authenticated. Please login first."})
     }
     try{
