@@ -117,17 +117,60 @@ export default function InvoicesList() {
 
   // Show error state
   if (error) {
+    // Check if it's an authentication error
+    const isAuthError = error.includes('Not authenticated') || error.includes('401')
+
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-lg border border-red-200 p-8 max-w-md">
-          <h2 className="text-xl font-bold text-red-600 mb-2">Error Loading Invoices</h2>
-          <p className="text-gray-700">{error}</p>
-          <button
-            onClick={() => fetchData()}
-            className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-          >
-            Retry
-          </button>
+        <div className="bg-white rounded-lg border border-orange-200 p-8 max-w-md shadow-lg">
+          {isAuthError ? (
+            <>
+              <div className="text-center mb-6">
+                <div className="mx-auto w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Authentication Required</h2>
+                <p className="text-gray-600 mb-6">
+                  Please log in to QuickBooks to access your invoices.
+                </p>
+              </div>
+              <div className="space-y-3">
+                <a
+                  href="/login"
+                  className="block w-full px-4 py-3 bg-green-600 text-white text-center rounded-lg hover:bg-green-700 transition-colors font-semibold"
+                >
+                  Login to QuickBooks
+                </a>
+                <button
+                  onClick={() => fetchData()}
+                  className="block w-full px-4 py-3 bg-gray-100 text-gray-700 text-center rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Try Again
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-xl font-bold text-red-600 mb-2">Error Loading Invoices</h2>
+              <p className="text-gray-700 mb-4">{error}</p>
+              <div className="space-y-2">
+                <button
+                  onClick={() => fetchData()}
+                  className="block w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Retry
+                </button>
+                <a
+                  href="/login"
+                  className="block w-full px-4 py-2 bg-gray-100 text-gray-700 text-center rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Login Again
+                </a>
+              </div>
+            </>
+          )}
         </div>
       </div>
     )

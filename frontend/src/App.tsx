@@ -16,6 +16,7 @@ function App() {
                   <Route path="/home" element={<InvoicesList />} />
                   <Route path="/create-invoice" element={<CreateInvoice />} />
                   <Route path="/edit-invoice/:id" element={<CreateInvoice />} />
+                  
                 </Routes>
               </div>
             </InvoiceProvider>

@@ -85,8 +85,6 @@ app.use(
       httpOnly: true, // Prevent client-side JS from accessing cookie
       secure: process.env.NODE_ENV === 'production', // HTTPS only in production
       sameSite: 'lax', // CSRF protection - 'lax' works for same-site and OAuth redirects
-      // In development, explicitly set domain to work with Vite proxy on localhost
-      domain: process.env.NODE_ENV === 'production' ? undefined : 'localhost',
       path: '/', // Cookie available for all paths
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     },
@@ -169,7 +167,7 @@ app.get("/redirect", async (req, res)=> {
             // In development, this redirects to Vite dev server which proxies API calls to backend
             // In production, frontend is served from same server (no proxy needed)
             const redirectUrl = process.env.NODE_ENV === 'production'
-                ? '/'
+                ? '/home'
                 : process.env.FRONTEND_URL!;
             res.redirect(redirectUrl);
         });
@@ -218,6 +216,18 @@ const createEntity = async (entityType: string, entityData: any, realmId: string
 
     return response.json()
 }
+/**
+ * GET /auth/status
+ * Check if user is authenticated
+ */
+app.get('/auth/status', (req, res) => {
+    const isAuthenticated = !!(req.session.accessToken && req.session.realmId);
+    res.json({
+        authenticated: isAuthenticated,
+        sessionID: req.sessionID
+    });
+});
+
 // ==================== QUICKBOOKS API ROUTES ====================
 
 /**
