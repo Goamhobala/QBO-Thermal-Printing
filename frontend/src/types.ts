@@ -277,6 +277,25 @@ export interface Invoice {
   updatedAt?: string
 }
 
+// QuickBooks Term (payment terms)
+export interface Term {
+  Id: string
+  Name: string
+  Active: boolean
+  Type: string
+  DueDays?: number
+  DayOfMonthDue?: number
+  DiscountPercent?: number
+  DiscountDays?: number
+  SyncToken: string
+  MetaData: {
+    CreateTime: string
+    LastUpdatedTime: string
+  }
+  domain: string
+  sparse: boolean
+}
+
 export interface InvoiceFormData {
   customer: Customer | null
   invoiceNo: string

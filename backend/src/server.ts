@@ -462,6 +462,24 @@ app.get("/taxrates", async (req, res) => {
     }
 })
 
+app.get("/terms", async (req, res) => {
+    if (!req.session.accessToken || !req.session.realmId) {
+        return res.status(401).json({error: "Not authenticated. Please login first."})
+    }
+
+    try {
+        const data = await queryApi(
+            "SELECT * FROM Term",
+            req.session.realmId,
+            req.session.accessToken
+        )
+        res.json(data)
+    } catch (error) {
+        console.error("Error fetching terms:", error)
+        res.status(500).json({error: "Failed to fetch terms from QuickBooks"})
+    }
+})
+
 app.get("/invoices", async (req, res)=>{
     console.log('📊 /invoices request:', {
         hasSession: !!req.session,

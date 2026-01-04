@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { LineItem, InvoiceFormData } from '../types'
-import { useCustomer, useItem, useTaxCode, useInvoice } from '../contexts'
+import { useCustomer, useItem, useTaxCode, useTerm, useInvoice } from '../contexts'
 import { useCreateInvoice } from '../hooks/useCreateInvoice'
 import Input from '../components/Input'
 import Select from '../components/Select'
@@ -19,6 +19,7 @@ const CreateInvoice = () => {
   const { data: customers, loading: customersLoading, error: customersError, fetchData: fetchCustomers } = useCustomer()
   const { data: items, loading: itemsLoading, error: itemsError, fetchData: fetchItems } = useItem()
   const { data: taxCodes, loading: taxCodesLoading, error: taxCodesError, fetchData: fetchTaxCodes } = useTaxCode()
+  const { data: terms, loading: termsLoading, error: termsError, fetchData: fetchTerms } = useTerm()
   const { data: invoices } = useInvoice()
   const { createInvoice, loading: createLoading, error: createError } = useCreateInvoice()
 
@@ -26,6 +27,11 @@ const CreateInvoice = () => {
   const availableTaxCodes = useMemo(() => {
     return taxCodes.filter(tc => tc.Active && !tc.Hidden)
   }, [taxCodes])
+
+  // Filter to only show active terms
+  const availableTerms = useMemo(() => {
+    return terms.filter(t => t.Active)
+  }, [terms])
 
   // Calculate next invoice number
   const nextInvoiceNumber = useMemo(() => {
@@ -45,7 +51,7 @@ const CreateInvoice = () => {
   const [formData, setFormData] = useState<InvoiceFormData>({
     customer: null,
     invoiceNo: "",
-    terms: 'Net 30',
+    terms: '',
     invoiceDate: new Date().toISOString().split('T')[0],
     dueDate: '',
     poNumber: '',
@@ -66,7 +72,8 @@ const CreateInvoice = () => {
     fetchCustomers()
     fetchItems()
     fetchTaxCodes()
-  }, [fetchCustomers, fetchItems, fetchTaxCodes])
+    fetchTerms()
+  }, [fetchCustomers, fetchItems, fetchTaxCodes, fetchTerms])
 
   // Update invoice number when creating a new invoice
   useEffect(() => {
@@ -77,16 +84,32 @@ const CreateInvoice = () => {
 
   // Calculate due date based on terms
   useEffect(() => {
-    if (formData.invoiceDate && formData.terms) {
+    if (formData.invoiceDate && formData.terms && availableTerms.length > 0) {
       const date = new Date(formData.invoiceDate)
-      const daysMatch = formData.terms.match(/\d+/)
-      if (daysMatch) {
-        const days = parseInt(daysMatch[0])
-        date.setDate(date.getDate() + days)
+
+      // Find the selected term from QuickBooks
+      const selectedTerm = availableTerms.find(t => t.Name === formData.terms)
+
+      if (selectedTerm?.DueDays) {
+        // Use DueDays from QuickBooks Term
+        date.setDate(date.getDate() + selectedTerm.DueDays)
         setFormData(prev => ({ ...prev, dueDate: date.toISOString().split('T')[0] }))
+      } else if (selectedTerm?.DayOfMonthDue) {
+        // For date-driven terms (e.g., "1st of next month")
+        date.setMonth(date.getMonth() + 1)
+        date.setDate(selectedTerm.DayOfMonthDue)
+        setFormData(prev => ({ ...prev, dueDate: date.toISOString().split('T')[0] }))
+      } else {
+        // Fallback: try to extract days from term name
+        const daysMatch = formData.terms.match(/\d+/)
+        if (daysMatch) {
+          const days = parseInt(daysMatch[0])
+          date.setDate(date.getDate() + days)
+          setFormData(prev => ({ ...prev, dueDate: date.toISOString().split('T')[0] }))
+        }
       }
     }
-  }, [formData.invoiceDate, formData.terms])
+  }, [formData.invoiceDate, formData.terms, availableTerms])
 
   // Calculate totals
   useEffect(() => {
@@ -233,6 +256,12 @@ const CreateInvoice = () => {
           <p className="text-sm">{taxCodesError}</p>
         </div>
       )}
+      {termsError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+          <p className="font-medium">Error loading terms</p>
+          <p className="text-sm">{termsError}</p>
+        </div>
+      )}
       {createError && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
           <p className="font-medium">Error creating invoice</p>
@@ -293,12 +322,15 @@ const CreateInvoice = () => {
                 <Select
                   label="Terms"
                   options={[
-                    { value: 'Net 30', label: 'Net 30' },
-                    { value: 'Net 15', label: 'Net 15' },
-                    { value: 'Due on receipt', label: 'Due on receipt' }
+                    { value: '', label: 'Select terms...' },
+                    ...availableTerms.map(t => ({
+                      value: t.Name,
+                      label: t.Name
+                    }))
                   ]}
                   value={formData.terms}
                   onChange={(e) => setFormData(prev => ({ ...prev, terms: e.target.value }))}
+                  disabled={termsLoading}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -577,7 +609,7 @@ const CreateInvoice = () => {
                 type="submit"
                 className="w-full"
                 size="lg"
-                disabled={createLoading || customersLoading || itemsLoading || taxCodesLoading}
+                disabled={createLoading || customersLoading || itemsLoading || taxCodesLoading || termsLoading}
               >
                 {createLoading ? 'Creating Invoice...' : isEditMode ? 'Update Invoice' : 'Create Invoice'}
               </Button>

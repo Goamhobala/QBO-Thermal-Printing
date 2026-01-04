@@ -165,7 +165,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
     }
 
     .company-name {
-      font-size: 16px;
+      font-size: 24px;
       font-weight: bold;
       margin-bottom: 8px;
     }
