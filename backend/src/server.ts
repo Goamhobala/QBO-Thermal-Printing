@@ -32,10 +32,37 @@ console.log(`🔗 QuickBooks Base URL: ${QBO_BASE_URL}`);
 
 // Set up PostgreSQL session store with Supabase
 const PgSession = connectPgSimple(expressSession);
+
+// Supabase connection configuration
+// If using connection pooling mode, you may need to use port 6543
+// For direct connection (Transaction mode), use port 5432
 const pgPool = new pg.Pool({
     connectionString: process.env.SUPABASE,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined
+    ssl: {
+        rejectUnauthorized: false // Required for Supabase
+    },
+    // Connection pool settings optimized for Supabase
+    max: 5, // Lower max connections for Supabase free tier
+    min: 1, // Keep at least one connection alive
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 30000, // Increased to 30 seconds for slow Supabase connections
+    // Supabase-specific settings
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
 });
+
+// Test the connection on startup
+pgPool.connect()
+    .then(client => {
+        console.log('✅ Successfully connected to Supabase PostgreSQL');
+        client.release();
+    })
+    .catch(err => {
+        console.error('❌ Failed to connect to Supabase:', err);
+        console.warn('⚠️ Session store may not work. Check your SUPABASE connection string.');
+        console.warn('⚠️ Make sure you are using the correct connection string format:');
+        console.warn('   postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres');
+    });
 
 console.log(`💾 Session Store: ${process.env.SUPABASE ? 'PostgreSQL (Supabase)' : 'Memory'}`);
 
@@ -49,12 +76,13 @@ const oauthClient = new OAuthClient({
 
 
 
-// Generate the OAuth authorization URL
-// Users will be redirected here to grant permissions
-const authUri = oauthClient.authorizeUri({
-    scope: [(OAuthClient as any).scopes.Accounting], // Request access to accounting data
-    state: "testState" // CSRF protection token
-})
+// We'll generate the OAuth authorization URL dynamically per request
+// This allows us to use unique CSRF state tokens for better security
+
+// Helper function to generate random CSRF state token
+const generateState = () => {
+    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+};
 
 // Initialize Express application
 const app = express();
@@ -70,13 +98,18 @@ if (process.env.NODE_ENV !== 'production') {
 
 // Configure session middleware
 // Sessions store OAuth tokens and company info (realmId)
+const sessionStore = new PgSession({
+  pool: pgPool, // Use Supabase PostgreSQL connection pool
+  tableName: 'session', // Table to store sessions
+  createTableIfMissing: true, // Auto-create session table
+  errorLog: (error) => {
+    console.error('❌ Session store error:', error);
+  },
+});
+
 app.use(
   expressSession({
-    store: new PgSession({
-      pool: pgPool, // Use Supabase PostgreSQL connection pool
-      tableName: 'session', // Table to store sessions
-      createTableIfMissing: true, // Auto-create session table
-    }),
+    store: sessionStore,
     name: "qb_thermal.sid", // Session cookie name
     secret: process.env.SESSION_SECRET!, // Secret for signing session ID cookie
     resave: false, // Don't save session if unmodified
@@ -99,10 +132,31 @@ app.use(express.json());
 /**
  * GET /login
  * Initiates QuickBooks OAuth flow by redirecting to QuickBooks authorization page
+ * Generates a unique CSRF state token for each login attempt
  */
-app.get('/login', (req, res)=>{
-    console.log(authUri)
-    res.redirect(authUri)
+app.get('/login', (req, res) => {
+    // Generate a unique state token for CSRF protection
+    const state = generateState();
+
+    // Store the state in the session so we can verify it on callback
+    req.session.oauthState = state;
+
+    // Save session before redirecting to ensure state is stored
+    req.session.save((err) => {
+        if (err) {
+            console.error('❌ Failed to save OAuth state:', err);
+            return res.status(500).send('Failed to initiate login. Please try again.');
+        }
+
+        // Generate the OAuth authorization URL with the unique state
+        const authUri = oauthClient.authorizeUri({
+            scope: [(OAuthClient as any).scopes.Accounting],
+            state: state
+        });
+
+        console.log('🔐 Initiating OAuth with state:', state);
+        res.redirect(authUri);
+    });
 })
 
 /**
@@ -115,13 +169,18 @@ app.get("/redirect", async (req, res)=> {
 
     // Validate required OAuth parameters
     if (!code || !realmId) {
-        return res.status(400).json({error: "Invalid request"})
+        return res.status(400).send('Invalid OAuth callback: Missing code or realmId')
     }
 
     // Verify CSRF protection state token
-    if (state !== "testState") {
-        return res.status(400).json({error: "Invalid state"})
+    const expectedState = req.session.oauthState;
+    if (!expectedState || state !== expectedState) {
+        console.error('❌ CSRF state mismatch:', { expected: expectedState, received: state });
+        return res.status(403).send('Invalid state token. Possible CSRF attack. Please try logging in again.')
     }
+
+    // Clear the state from session now that we've verified it
+    delete req.session.oauthState;
 
     try {
         // Construct the full callback URL
@@ -149,28 +208,60 @@ app.get("/redirect", async (req, res)=> {
         req.session.accessToken = tokens.access_token; // Short-lived token for API calls
         req.session.refreshToken = tokens.refresh_token; // Long-lived token to get new access tokens
 
+        console.log('💾 Attempting to save session to database...');
+
         // Explicitly save session before redirecting
         // This ensures the session is written to the database before we send the response
-        req.session.save((err) => {
-            if (err) {
-                console.error('❌ Session save error:', err);
-                return res.status(500).json({ error: 'Failed to save session' });
-            }
+        // We use a timeout to handle slow Supabase connections
+        let saveTimeout: NodeJS.Timeout;
+        let sessionSaved = false;
 
-            console.log('✅ Session saved:', {
-                realmId: req.session.realmId,
-                hasAccessToken: !!req.session.accessToken,
-                sessionID: req.sessionID
-            });
-
-            // Redirect back to frontend after successful authentication
-            // In development, this redirects to Vite dev server which proxies API calls to backend
-            // In production, frontend is served from same server (no proxy needed)
-            const redirectUrl = process.env.NODE_ENV === 'production'
-                ? '/home'
-                : process.env.FRONTEND_URL!;
-            res.redirect(redirectUrl);
+        const saveTimeoutPromise = new Promise((_, reject) => {
+            saveTimeout = setTimeout(() => {
+                if (!sessionSaved) {
+                    reject(new Error('Session save timeout after 15 seconds'));
+                }
+            }, 15000); // 15 second timeout
         });
+
+        const savePromise = new Promise<void>((resolve, reject) => {
+            req.session.save((err) => {
+                sessionSaved = true;
+                clearTimeout(saveTimeout);
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve();
+                }
+            });
+        });
+
+        Promise.race([savePromise, saveTimeoutPromise])
+            .then(() => {
+                console.log('✅ Session saved successfully:', {
+                    realmId: req.session.realmId,
+                    hasAccessToken: !!req.session.accessToken,
+                    sessionID: req.sessionID
+                });
+
+                // Redirect back to frontend after successful authentication
+                // In development, this redirects to Vite dev server which proxies API calls to backend
+                // In production, frontend is served from same server (no proxy needed)
+                const redirectUrl = process.env.NODE_ENV === 'production'
+                    ? '/home'
+                    : process.env.FRONTEND_URL!;
+                res.redirect(redirectUrl);
+            })
+            .catch((err) => {
+                console.error('❌ Session save error:', err);
+                // Even if save fails, the session might still be in memory
+                // Try to redirect anyway, as the session might work for this request
+                console.warn('⚠️ Attempting redirect despite save error...');
+                const redirectUrl = process.env.NODE_ENV === 'production'
+                    ? '/home'
+                    : process.env.FRONTEND_URL!;
+                res.redirect(redirectUrl);
+            });
     }
     catch (error){
         console.log(error)
