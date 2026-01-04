@@ -5,5 +5,6 @@ declare module "express-session" {
         realmId?: string;
         accessToken?: string;
         refreshToken?: string;
+        oauthState?: string; // CSRF protection token for OAuth flow
     }
 }
