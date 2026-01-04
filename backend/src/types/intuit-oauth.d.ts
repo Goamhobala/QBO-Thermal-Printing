@@ -19,7 +19,9 @@ declare module 'intuit-oauth' {
 
   export default class OAuthClient {
     constructor(config: OAuthClientConfig);
-    scopes: string[];
+    scopes: {
+      Accounting
+    }
     authorizeUri(params: {
       scope: string | string[];
       state: string;
