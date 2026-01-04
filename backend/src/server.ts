@@ -87,6 +87,11 @@ const generateState = () => {
 // Initialize Express application
 const app = express();
 
+// Trust first proxy (required for Render.com, Railway, Heroku, etc.)
+// This allows Express to correctly recognize HTTPS connections behind reverse proxies
+// and properly set/retrieve secure cookies for session management
+app.set('trust proxy', 1);
+
 // Configure CORS only in development (separate frontend/backend servers)
 // In production, frontend is served from the same origin (monolith)
 if (process.env.NODE_ENV !== 'production') {
@@ -166,6 +171,16 @@ app.get('/login', (req, res) => {
  */
 app.get("/redirect", async (req, res)=> {
     const {code, state, realmId} = req.query;
+
+    // Debug logging to verify session retrieval and cookie handling
+    console.log('🔍 Session debug:', {
+        sessionID: req.sessionID,
+        oauthState: req.session.oauthState,
+        hasSession: !!req.session,
+        cookieHeader: req.headers.cookie,
+        secure: req.secure,
+        protocol: req.protocol
+    });
 
     // Validate required OAuth parameters
     if (!code || !realmId) {
