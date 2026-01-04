@@ -9,8 +9,8 @@
 
 import express from "express";
 import expressSession from "express-session";
-import connectPgSimple from "connect-pg-simple";
-import pg from "pg";
+import { RedisStore } from "connect-redis";
+import { createClient } from "redis";
 import cors from "cors";
 import dotenv from "dotenv";
 import OAuthClient from "intuit-oauth";
@@ -30,41 +30,48 @@ const QBO_BASE_URL = QBO_ENVIRONMENT === 'production'
 console.log(`🔧 QuickBooks Environment: ${QBO_ENVIRONMENT}`);
 console.log(`🔗 QuickBooks Base URL: ${QBO_BASE_URL}`);
 
-// Set up PostgreSQL session store with Supabase
-const PgSession = connectPgSimple(expressSession);
-
-// Supabase connection configuration
-// If using connection pooling mode, you may need to use port 6543
-// For direct connection (Transaction mode), use port 5432
-const pgPool = new pg.Pool({
-    connectionString: process.env.SUPABASE,
-    ssl: {
-        rejectUnauthorized: false // Required for Supabase
-    },
-    // Connection pool settings optimized for Supabase
-    max: 5, // Lower max connections for Supabase free tier
-    min: 1, // Keep at least one connection alive
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 30000, // Increased to 30 seconds for slow Supabase connections
-    // Supabase-specific settings
-    keepAlive: true,
-    keepAliveInitialDelayMillis: 10000,
+// Set up Redis session store with Upstash
+// Redis is ideal for sessions: fast, reliable, and has IPv4 support on free tier
+const redisClient = createClient({
+    url: process.env.REDIS_URL,
+    socket: {
+        connectTimeout: 10000, // 10 second connection timeout
+        reconnectStrategy: (retries) => {
+            // Exponential backoff with max 3 seconds
+            if (retries > 10) {
+                console.error('❌ Redis max reconnection attempts reached');
+                return new Error('Redis connection failed');
+            }
+            return Math.min(retries * 100, 3000);
+        }
+    }
 });
 
-// Test the connection on startup
-pgPool.connect()
-    .then(client => {
-        console.log('✅ Successfully connected to Supabase PostgreSQL');
-        client.release();
-    })
-    .catch(err => {
-        console.error('❌ Failed to connect to Supabase:', err);
-        console.warn('⚠️ Session store may not work. Check your SUPABASE connection string.');
-        console.warn('⚠️ Make sure you are using the correct connection string format:');
-        console.warn('   postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres');
-    });
+// Handle Redis connection events
+redisClient.on('connect', () => {
+    console.log('🔄 Connecting to Redis...');
+});
 
-console.log(`💾 Session Store: ${process.env.SUPABASE ? 'PostgreSQL (Supabase)' : 'Memory'}`);
+redisClient.on('ready', () => {
+    console.log('✅ Successfully connected to Redis (Upstash)');
+});
+
+redisClient.on('error', (err) => {
+    console.error('❌ Redis connection error:', err);
+    console.warn('⚠️ Session store may not work. Check your REDIS_URL environment variable.');
+    console.warn('⚠️ Get Redis URL from: https://upstash.com (Create database → Copy REST URL)');
+});
+
+redisClient.on('reconnecting', () => {
+    console.log('🔄 Reconnecting to Redis...');
+});
+
+// Connect to Redis
+redisClient.connect().catch(err => {
+    console.error('❌ Failed to connect to Redis:', err);
+});
+
+console.log(`💾 Session Store: ${process.env.REDIS_URL ? 'Redis (Upstash)' : 'Memory'}`);
 
 // Initialize QuickBooks OAuth client with credentials from environment variables
 const oauthClient = new OAuthClient({
@@ -101,20 +108,15 @@ if (process.env.NODE_ENV !== 'production') {
   }));
 }
 
-// Configure session middleware
+// Configure session middleware with Redis
 // Sessions store OAuth tokens and company info (realmId)
-const sessionStore = new PgSession({
-  pool: pgPool, // Use Supabase PostgreSQL connection pool
-  tableName: 'session', // Table to store sessions
-  createTableIfMissing: true, // Auto-create session table
-  errorLog: (error) => {
-    console.error('❌ Session store error:', error);
-  },
-});
-
 app.use(
   expressSession({
-    store: sessionStore,
+    store: new RedisStore({
+      client: redisClient,
+      prefix: 'qb_session:', // Prefix for Redis keys
+      ttl: 30 * 24 * 60 * 60, // 30 days in seconds
+    }),
     name: "qb_thermal.sid", // Session cookie name
     secret: process.env.SESSION_SECRET!, // Secret for signing session ID cookie
     resave: false, // Don't save session if unmodified
