@@ -35,16 +35,21 @@ console.log(`🔗 QuickBooks Base URL: ${QBO_BASE_URL}`);
 const redisClient = createClient({
     url: process.env.REDIS_URL,
     socket: {
-        connectTimeout: 10000, // 10 second connection timeout
+        connectTimeout: 30000, // 30 second connection timeout (Upstash can be slow on free tier)
+        tls: process.env.REDIS_URL?.startsWith('redis://') ? true : undefined, // Enable TLS for rediss:// URLs
         reconnectStrategy: (retries) => {
-            // Exponential backoff with max 3 seconds
-            if (retries > 10) {
+            // Exponential backoff with max 5 seconds
+            if (retries > 20) {
                 console.error('❌ Redis max reconnection attempts reached');
                 return new Error('Redis connection failed');
             }
-            return Math.min(retries * 100, 3000);
+            const delay = Math.min(retries * 500, 5000);
+            console.log(`⏳ Retry ${retries} - waiting ${delay}ms before reconnect...`);
+            return delay;
         }
-    }
+    },
+    // Disable offline queue to fail fast if Redis is down
+    disableOfflineQueue: false,
 });
 
 // Handle Redis connection events
@@ -54,21 +59,32 @@ redisClient.on('connect', () => {
 
 redisClient.on('ready', () => {
     console.log('✅ Successfully connected to Redis (Upstash)');
+    console.log('📊 Redis connection info:', {
+        url: process.env.REDIS_URL?.replace(/:[^:@]+@/, ':****@'), // Hide password
+        tls: process.env.REDIS_URL?.startsWith('rediss://') ? 'enabled' : 'disabled'
+    });
 });
 
 redisClient.on('error', (err) => {
-    console.error('❌ Redis connection error:', err);
+    console.error('❌ Redis connection error:', err.message);
     console.warn('⚠️ Session store may not work. Check your REDIS_URL environment variable.');
-    console.warn('⚠️ Get Redis URL from: https://upstash.com (Create database → Copy REST URL)');
+    console.warn('⚠️ Upstash Redis URL format: redis://default:PASSWORD@ENDPOINT.upstash.io:PORT');
+    console.warn('⚠️ For TLS, use: rediss://default:PASSWORD@ENDPOINT.upstash.io:PORT');
 });
 
 redisClient.on('reconnecting', () => {
     console.log('🔄 Reconnecting to Redis...');
 });
 
-// Connect to Redis
+redisClient.on('end', () => {
+    console.log('🔌 Redis connection closed');
+});
+
+// Connect to Redis with better error handling
+console.log('🔄 Initiating Redis connection...');
 redisClient.connect().catch(err => {
-    console.error('❌ Failed to connect to Redis:', err);
+    console.error('❌ Failed to connect to Redis:', err.message);
+    console.error('⚠️ Server will use memory session store (sessions will be lost on restart)');
 });
 
 console.log(`💾 Session Store: ${process.env.REDIS_URL ? 'Redis (Upstash)' : 'Memory'}`);
@@ -108,15 +124,9 @@ if (process.env.NODE_ENV !== 'production') {
   }));
 }
 
-// Configure session middleware with Redis
+// Configure session middleware with Redis (or fallback to memory store)
 // Sessions store OAuth tokens and company info (realmId)
-app.use(
-  expressSession({
-    store: new RedisStore({
-      client: redisClient,
-      prefix: 'qb_session:', // Prefix for Redis keys
-      ttl: 30 * 24 * 60 * 60, // 30 days in seconds
-    }),
+const sessionConfig: expressSession.SessionOptions = {
     name: "qb_thermal.sid", // Session cookie name
     secret: process.env.SESSION_SECRET!, // Secret for signing session ID cookie
     resave: false, // Don't save session if unmodified
@@ -128,8 +138,22 @@ app.use(
       path: '/', // Cookie available for all paths
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     },
-  })
-);
+};
+
+// Only add Redis store if REDIS_URL is configured
+// This allows the app to work even without Redis (will use memory store)
+if (process.env.REDIS_URL) {
+    sessionConfig.store = new RedisStore({
+      client: redisClient,
+      prefix: 'qb_session:', // Prefix for Redis keys
+      ttl: 30 * 24 * 60 * 60, // 30 days in seconds
+    });
+    console.log('📦 Using Redis session store');
+} else {
+    console.warn('⚠️ REDIS_URL not set - using memory session store (sessions will be lost on restart)');
+}
+
+app.use(expressSession(sessionConfig));
 
 // Parse JSON request bodies
 app.use(express.json());
