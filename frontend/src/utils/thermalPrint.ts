@@ -98,6 +98,18 @@ function convertFormDataToThermalData(
   if (billAddr?.Line3) addressParts.push(billAddr.Line3)
   const address = addressParts.join(', ')
 
+  // Extract VAT number from PrimaryTaxIdentifier
+  // Format can be "VATNO 4660281926" or "XXX4660281926" (privacy blurred)
+  // We just extract the numeric portion which is never blurred
+  let vatNumber: string | undefined = undefined
+  if (customer?.PrimaryTaxIdentifier) {
+    const numbers = customer.PrimaryTaxIdentifier.match(/\d+/g)
+    if (numbers && numbers.length > 0) {
+      // Join all number sequences (in case there are multiple)
+      vatNumber = numbers.join('')
+    }
+  }
+
   return {
     invoiceNo: formData.invoiceNo,
     date: formatDate(formData.invoiceDate),
@@ -109,7 +121,7 @@ function convertFormDataToThermalData(
       address: address || undefined,
       city: billAddr?.City,
       postalCode: billAddr?.PostalCode,
-      vatNumber: customer?.PrimaryTaxIdentifier
+      vatNumber
     },
     items,
     subtotal,
@@ -140,7 +152,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
       color: #000;
       background: #f0f0f0;
       padding: 20px;
-      font-weight: 600;
+      font-weight: normal;
     }
 
     .receipt {
@@ -213,7 +225,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
       flex: 1;
       font-size: 12px;
       line-height: 1.3;
-      font-weight: 600;
+      font-weight: normal;
     }
 
     .item-amount {
@@ -253,7 +265,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
 
     .small {
       font-size: 11px;
-      font-weight: 600;
+      font-weight: normal;
     }
 
     @media print {
@@ -304,7 +316,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
       ${data.customer.address ? `<div class="small">${data.customer.address}</div>` : ''}
       ${data.customer.city ? `<div class="small">${data.customer.city}</div>` : ''}
       ${data.customer.postalCode ? `<div class="small">${data.customer.postalCode}</div>` : ''}
-      ${data.customer.vatNumber ? `<div class="small">VAT: ${data.customer.vatNumber}</div>` : ''}
+      ${data.customer.vatNumber ? `<div class="small">VAT NO. ${data.customer.vatNumber}</div>` : ''}
     </div>
 
     <!-- Invoice Details -->
