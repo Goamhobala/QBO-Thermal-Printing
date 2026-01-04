@@ -36,7 +36,6 @@ const redisClient = createClient({
     url: process.env.REDIS_URL,
     socket: {
         connectTimeout: 30000, // 30 second connection timeout (Upstash can be slow on free tier)
-        tls: process.env.REDIS_URL?.startsWith('redis://') ? true : undefined, // Enable TLS for rediss:// URLs
         reconnectStrategy: (retries) => {
             // Exponential backoff with max 5 seconds
             if (retries > 20) {
