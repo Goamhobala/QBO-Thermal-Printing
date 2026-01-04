@@ -225,20 +225,20 @@ app.get("/redirect", async (req, res)=> {
         req.session.accessToken = tokens.access_token; // Short-lived token for API calls
         req.session.refreshToken = tokens.refresh_token; // Long-lived token to get new access tokens
 
-        console.log('💾 Attempting to save session to database...');
+        console.log('💾 Attempting to save session to Redis...');
 
         // Explicitly save session before redirecting
-        // This ensures the session is written to the database before we send the response
-        // We use a timeout to handle slow Supabase connections
+        // This ensures the session is written to Redis before we send the response
+        // Redis is much faster than PostgreSQL, so we use a shorter timeout
         let saveTimeout: NodeJS.Timeout;
         let sessionSaved = false;
 
         const saveTimeoutPromise = new Promise((_, reject) => {
             saveTimeout = setTimeout(() => {
                 if (!sessionSaved) {
-                    reject(new Error('Session save timeout after 15 seconds'));
+                    reject(new Error('Session save timeout after 5 seconds'));
                 }
-            }, 15000); // 15 second timeout
+            }, 5000); // 5 second timeout (Redis is fast, but network latency possible)
         });
 
         const savePromise = new Promise<void>((resolve, reject) => {
@@ -255,7 +255,7 @@ app.get("/redirect", async (req, res)=> {
 
         Promise.race([savePromise, saveTimeoutPromise])
             .then(() => {
-                console.log('✅ Session saved successfully:', {
+                console.log('✅ Session saved successfully to Redis:', {
                     realmId: req.session.realmId,
                     hasAccessToken: !!req.session.accessToken,
                     sessionID: req.sessionID
