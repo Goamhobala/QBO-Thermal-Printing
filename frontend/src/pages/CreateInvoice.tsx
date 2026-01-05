@@ -8,6 +8,7 @@ import Select from '../components/Select'
 import Button from '../components/Button'
 import Textarea from '../components/Textarea'
 import { ItemCombobox } from '../components/ItemCombobox'
+import { CustomerCombobox } from '../components/CustomerCombobox'
 import { openThermalPrintFromForm, setTaxRateLookup, setTaxCodeLookup } from '../utils/thermalPrint'
 
 
@@ -465,28 +466,23 @@ const CreateInvoice = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left Column */}
             <div className="space-y-4">
-              <Select
-                label="Customer"
-                options={[
-                  { value: '', label: 'Select a customer...' },
-                  ...customers.map(c => ({
-                    value: c.Id,
-                    label: c.DisplayName
-                  }))
-                ]}
-                value={formData.customer?.Id || ''}
-                onChange={(e) => {
-                  if (e.target.value === '') {
-                    setFormData(prev => ({ ...prev, customer: null }))
-                    return
-                  }
-                  const selectedCustomer = customers.find(c => c.Id === e.target.value)
-                  if (selectedCustomer) {
-                    setFormData(prev => ({ ...prev, customer: selectedCustomer }))
-                  }
-                }}
-                disabled={customersLoading}
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Customer
+                </label>
+                <CustomerCombobox
+                  customers={customers}
+                  value={formData.customer?.Id}
+                  onValueChange={(customerId) => {
+                    const selectedCustomer = customers.find(c => c.Id === customerId)
+                    if (selectedCustomer) {
+                      setFormData(prev => ({ ...prev, customer: selectedCustomer }))
+                    }
+                  }}
+                  onCustomerCreated={fetchCustomers}
+                  disabled={customersLoading}
+                />
+              </div>
               {customersLoading && <p className="text-sm text-gray-500">Loading customers...</p>}
             </div>
 

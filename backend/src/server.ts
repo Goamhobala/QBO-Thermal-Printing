@@ -581,6 +581,36 @@ app.post("/invoices", async (req, res) => {
     }
 })
 
+app.post("/customers", async (req, res)=>{
+    if (!req.session.accessToken || !req.session.realmId) {
+        return res.status(401).json({ error: "Not authenticated. Please login first." })
+    }
+    try{
+        const customerData = req.body
+        if (!customerData.DisplayName && !customerData.FamilyName)
+        {
+            return res.status(400).json({
+                error: "Invalid customer data. At least one of DisplayName or FamilyName is required."
+            })
+        }
+        const data = await createEntity(
+            "customer",
+            customerData,
+            req.session.realmId,
+            req.session.accessToken
+        )
+
+        console.log('QuickBooks response:', JSON.stringify(data, null, 2))
+        res.json(data)
+
+    }catch(error){
+        console.error("Error creating customer:", error)
+        res.status(500).json({
+            error: error instanceof Error ? error.message : "Failed to create customer in QuickBooks"
+        })
+    }
+})
+
 // ==================== SYSTEM ROUTES ====================
 
 /**
