@@ -23,7 +23,7 @@ const getInvoiceStatus = (balance: number, dueDate: string): 'paid' | 'unpaid' |
 export default function InvoicesList() {
   const navigate = useNavigate()
   const { data: qboInvoices, loading, error, fetchData } = useInvoice()
-  const { data: customers } = useCustomer()
+  const { data: customers, fetchData: fetchCustomers } = useCustomer()
   const { data: taxRates, fetchData: fetchTaxRates } = useTaxRate()
   const { data: taxCodes, fetchData: fetchTaxCodes } = useTaxCode()
   const [searchTerm, setSearchTerm] = useState('')
@@ -38,9 +38,10 @@ export default function InvoicesList() {
   // Fetch data on mount
   useEffect(() => {
     fetchData()
+    fetchCustomers()
     fetchTaxRates()
     fetchTaxCodes()
-  }, [fetchData, fetchTaxRates, fetchTaxCodes])
+  }, [fetchData, fetchCustomers, fetchTaxRates, fetchTaxCodes])
 
   // Set up customer lookup for thermal printing
   useEffect(() => {
