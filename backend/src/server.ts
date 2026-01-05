@@ -512,6 +512,38 @@ app.get("/invoices", async (req, res)=>{
 })
 
 /**
+ * GET /invoices/:id
+ * Fetch a single invoice by ID from QuickBooks
+ */
+app.get("/invoices/:id", async (req, res) => {
+    if (!req.session.accessToken || !req.session.realmId) {
+        return res.status(401).json({ error: "Not authenticated. Please login first." })
+    }
+
+    const { id } = req.params
+
+    try {
+        const data = await queryApi(
+            `SELECT * FROM Invoice WHERE Id = '${id}'`,
+            req.session.realmId,
+            req.session.accessToken
+        ) as any
+
+        // QuickBooks returns an array even for single results
+        const invoice = data.QueryResponse?.Invoice?.[0]
+
+        if (!invoice) {
+            return res.status(404).json({ error: "Invoice not found" })
+        }
+
+        res.json({ Invoice: invoice })
+    } catch (error) {
+        console.error("Error fetching invoice:", error)
+        res.status(500).json({ error: "Failed to fetch invoice from QuickBooks" })
+    }
+})
+
+/**
  * POST /invoices
  * Create a new invoice in QuickBooks
  */

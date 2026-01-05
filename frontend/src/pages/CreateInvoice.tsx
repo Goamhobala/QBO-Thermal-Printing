@@ -67,6 +67,9 @@ const CreateInvoice = () => {
   const [totalVat, setTotalVat] = useState(0)
   const [total, setTotal] = useState(0)
   const [tagInput, setTagInput] = useState('')
+  const [loadingInvoice, setLoadingInvoice] = useState(false)
+  const [invoiceError, setInvoiceError] = useState<string | null>(null)
+  const [fetchedInvoice, setFetchedInvoice] = useState<any>(null)
 
   useEffect(() => {
     fetchCustomers()
@@ -74,6 +77,101 @@ const CreateInvoice = () => {
     fetchTaxCodes()
     fetchTerms()
   }, [fetchCustomers, fetchItems, fetchTaxCodes, fetchTerms])
+
+  // Fetch invoice data when in edit mode
+  useEffect(() => {
+    const fetchInvoice = async () => {
+      if (!isEditMode || !id) return
+
+      setLoadingInvoice(true)
+      setInvoiceError(null)
+
+      try {
+        const response = await fetch(`/invoices/${id}`, {
+          credentials: 'include'
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch invoice: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        const invoice = data.Invoice
+
+        if (!invoice) {
+          throw new Error('Invoice not found')
+        }
+
+        setFetchedInvoice(invoice)
+
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch invoice'
+        setInvoiceError(errorMessage)
+        console.error('Error fetching invoice:', err)
+      } finally {
+        setLoadingInvoice(false)
+      }
+    }
+
+    fetchInvoice()
+  }, [isEditMode, id])
+
+  // Populate form with fetched invoice data once all data is loaded
+  useEffect(() => {
+    if (!fetchedInvoice || !isEditMode || customersLoading || itemsLoading || taxCodesLoading || termsLoading) {
+      return
+    }
+
+    const invoice = fetchedInvoice
+
+    // Find the customer
+    const customer = customers.find(c => c.Id === invoice.CustomerRef?.value) || null
+
+    // Convert QuickBooks Line items to our LineItem format
+    const lineItems: LineItem[] = invoice.Line
+      .filter((line: any) => line.DetailType === 'SalesItemLineDetail')
+      .map((line: any, index: number) => {
+        const detail = line.SalesItemLineDetail
+        const item = items.find(i => i.Id === detail?.ItemRef?.value)
+
+        return {
+          id: line.Id || `line-${index}`,
+          itemId: detail?.ItemRef?.value,
+          productName: detail?.ItemRef?.name || '',
+          sku: item?.Sku || '',
+          description: line.Description || '',
+          quantity: detail?.Qty || 1,
+          rate: detail?.UnitPrice || 0,
+          amount: line.Amount || 0,
+          vatAmount: 0, // Will be calculated
+          taxRateId: detail?.TaxCodeRef?.value
+        }
+      })
+
+    // Extract terms (if available)
+    const termsName = invoice.SalesTermRef?.value || ''
+
+    // Parse custom fields for tags
+    const tags = invoice.CustomField
+      ?.filter((field: any) => field.Name === 'Tags' && field.StringValue)
+      .map((field: any) => field.StringValue) || []
+
+    setFormData({
+      customer,
+      invoiceNo: invoice.DocNumber || '',
+      terms: termsName,
+      invoiceDate: invoice.TxnDate || new Date().toISOString().split('T')[0],
+      dueDate: invoice.DueDate || '',
+      poNumber: invoice.CustomField?.find((f: any) => f.Name === 'P.O. Number')?.StringValue || '',
+      salesRep: invoice.CustomField?.find((f: any) => f.Name === 'Sales Rep')?.StringValue || '',
+      tags,
+      taxType: 'exclusive', // Default to exclusive
+      lineItems,
+      noteToCustomer: invoice.CustomerMemo?.value || 'Thank you for your business.',
+      memoOnStatement: invoice.PrivateNote || ''
+    })
+
+  }, [fetchedInvoice, isEditMode, customers, items, taxCodes, terms, customersLoading, itemsLoading, taxCodesLoading, termsLoading])
 
   // Update invoice number when creating a new invoice
   useEffect(() => {
@@ -238,6 +336,17 @@ const CreateInvoice = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {loadingInvoice && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded mb-6">
+          <p className="font-medium">Loading invoice...</p>
+        </div>
+      )}
+      {invoiceError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+          <p className="font-medium">Error loading invoice</p>
+          <p className="text-sm">{invoiceError}</p>
+        </div>
+      )}
       {customersError && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
           <p className="font-medium">Error loading customers</p>
