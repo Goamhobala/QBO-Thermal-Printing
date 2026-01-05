@@ -1,6 +1,13 @@
 import { QBOInvoice, InvoiceFormData, Customer } from '../types'
 import { formatDate } from './dateFormat'
 
+// Customer lookup - will be set by the component that uses this module
+let customerLookup: ((customerId: string) => Customer | null) | null = null
+
+export function setCustomerLookup(lookup: (customerId: string) => Customer | null) {
+  customerLookup = lookup
+}
+
 interface ThermalPrintData {
   invoiceNo: string
   date: string
@@ -24,7 +31,10 @@ interface ThermalPrintData {
   balanceDue: number
 }
 
-function convertQBOInvoiceToThermalData(invoice: QBOInvoice, customer: Customer | null): ThermalPrintData {
+function convertQBOInvoiceToThermalData(invoice: QBOInvoice): ThermalPrintData {
+  // Look up customer from the invoice's CustomerRef
+  const customer = customerLookup ? customerLookup(invoice.CustomerRef.value) : null
+
   // Extract line items
   const items = invoice.Line
     .filter(line => line.DetailType === 'SalesItemLineDetail' && line.SalesItemLineDetail)
@@ -407,8 +417,8 @@ function generateThermalHTML(data: ThermalPrintData): string {
 </html>`
 }
 
-export function openThermalPrint(invoice: QBOInvoice, customer: Customer | null): void {
-  const data = convertQBOInvoiceToThermalData(invoice, customer)
+export function openThermalPrint(invoice: QBOInvoice): void {
+  const data = convertQBOInvoiceToThermalData(invoice)
   const html = generateThermalHTML(data)
 
   const printWindow = window.open('', '_blank', 'width=800,height=600')

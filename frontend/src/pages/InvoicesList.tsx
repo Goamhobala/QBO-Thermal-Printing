@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Search, Filter, ChevronDown, Printer, Edit, DollarSign, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { useInvoice, useCustomer } from '../contexts'
 import { cn } from '../lib/utils'
-import { openThermalPrint } from '../utils/thermalPrint'
+import { openThermalPrint, setCustomerLookup } from '../utils/thermalPrint'
 import { formatDate } from '../utils/dateFormat'
 
 const ITEMS_PER_PAGE = 10
@@ -37,6 +37,13 @@ export default function InvoicesList() {
   useEffect(() => {
     fetchData()
   }, [fetchData])
+
+  // Set up customer lookup for thermal printing
+  useEffect(() => {
+    setCustomerLookup((customerId: string) => {
+      return customers.find(c => c.Id === customerId) || null
+    })
+  }, [customers])
 
   // Get unique customers for filter
   const uniqueCustomers = useMemo(() => {
@@ -440,10 +447,7 @@ export default function InvoicesList() {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => {
-                              const customer = customers.find(c => c.Id === invoice.CustomerRef.value) || null
-                              openThermalPrint(invoice, customer)
-                            }}
+                            onClick={() => openThermalPrint(invoice)}
                             className="inline-flex items-center gap-1 px-3 py-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
                             title="Print Receipt"
                           >
