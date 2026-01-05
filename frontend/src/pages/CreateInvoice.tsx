@@ -493,7 +493,6 @@ const CreateInvoice = () => {
                   label="Invoice no."
                   value={isEditMode ? formData.invoiceNo : nextInvoiceNumber}
                   onChange={(e) => setFormData(prev => ({ ...prev, invoiceNo: e.target.value }))}
-                  disabled={!isEditMode}
                   placeholder={!isEditMode ? "Auto-generated" : ""}
                 />
                 <Select
@@ -668,7 +667,7 @@ const CreateInvoice = () => {
                         onChange={(e) => updateLineItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
                         className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                         min="0"
-                        step="0.5"
+                        step="0.01"
                       />
                     </td>
                     <td className="px-4 py-3">
