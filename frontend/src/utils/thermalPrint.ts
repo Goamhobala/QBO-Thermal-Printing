@@ -247,7 +247,6 @@ function generateThermalHTML(data: ThermalPrintData): string {
       line-height: 1;
       color: #000;
       background: #f0f0f0;
-      padding: 20px;
       font-weight: normal;
     }
 
@@ -390,7 +389,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
     @media print {
       body {
         background: white;
-        padding: 5mm;
+        padding: 0;
         margin: 0;
       }
 
