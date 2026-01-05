@@ -244,7 +244,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
     body {
       font-family: 'Merchant Copy';
       font-size: 16px;
-      line-height: 1.4;
+      line-height: 1.2;
       color: #000;
       background: #f0f0f0;
       padding: 20px;
@@ -269,7 +269,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
     }
 
     .large {
-      font-size: 18px;
+      font-size: 16px;
     }
 
     .company-name {
@@ -293,10 +293,12 @@ function generateThermalHTML(data: ThermalPrintData): string {
       display: flex;
       justify-content: space-between;
       margin: 4px 0;
+      font-size: 16px;
     }
 
     .row-label {
       font-weight: 700;
+      font-size: 16px;
     }
 
     .item {
@@ -320,8 +322,8 @@ function generateThermalHTML(data: ThermalPrintData): string {
 
     .item-desc {
       flex: 1;
-      font-size: 12px;
-      line-height: 1.3;
+      font-size: 16px;
+      line-height: 1.2;
       font-weight: normal;
     }
 
@@ -329,6 +331,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
       text-align: right;
       white-space: nowrap;
       margin-left: 8px;
+      font-size: 16px;
     }
 
     .totals {
@@ -341,7 +344,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
       display: flex;
       justify-content: space-between;
       margin: 6px 0;
-      font-size: 12px;
+      font-size: 16px;
     }
 
     .balance-due {
@@ -349,7 +352,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
       border-bottom: 2px solid #000;
       padding: 8px 0;
       margin: 12px 0;
-      font-size: 14px;
+      font-size: 16px;
       font-weight: bold;
     }
 
@@ -361,8 +364,26 @@ function generateThermalHTML(data: ThermalPrintData): string {
     }
 
     .small {
-      font-size: 11px;
+      font-size: 14px;
       font-weight: normal;
+      line-height: 1.1;
+    }
+
+    .bill-to-header {
+      font-weight: bold;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .bill-to-name {
+      font-size: 16px;
+      font-weight: bold;
+      line-height: 1.2;
+    }
+
+    .footer-message {
+      font-size: 16px;
+      font-weight: bold;
     }
 
     @media print {
@@ -407,9 +428,9 @@ function generateThermalHTML(data: ThermalPrintData): string {
 
     <!-- Bill To -->
     <div class="section">
-      <div class="bold">BILL TO:</div>
-      <div>${data.customer.name}</div>
-      ${data.customer.companyName ? `<div>${data.customer.companyName}</div>` : ''}
+      <div class="bill-to-header">BILL TO:</div>
+      <div class="bill-to-name">${data.customer.name}</div>
+      ${data.customer.companyName ? `<div class="bill-to-name">${data.customer.companyName}</div>` : ''}
       ${data.customer.address ? `<div class="small">${data.customer.address}</div>` : ''}
       ${data.customer.city ? `<div class="small">${data.customer.city}</div>` : ''}
       ${data.customer.postalCode ? `<div class="small">${data.customer.postalCode}</div>` : ''}
@@ -488,7 +509,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
     </div>
 
     <!-- Footer -->
-    <div class="center" style="margin-top: 16px;">
+    <div class="center footer-message" style="margin-top: 16px;">
       Thank you for your business!
     </div>
   </div>
