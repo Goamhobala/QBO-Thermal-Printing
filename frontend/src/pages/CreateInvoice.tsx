@@ -491,9 +491,11 @@ const CreateInvoice = () => {
               <div className="grid grid-cols-2 gap-4">
                 <Input
                   label="Invoice no."
-                  value={isEditMode ? formData.invoiceNo : nextInvoiceNumber}
+                  type="number"
+                  defaultValue={nextInvoiceNumber}
+                  value={formData.invoiceNo || nextInvoiceNumber}
                   onChange={(e) => setFormData(prev => ({ ...prev, invoiceNo: e.target.value }))}
-                  placeholder={!isEditMode ? "Auto-generated" : ""}
+                  placeholder="Invoice number"
                 />
                 <Select
                   label="Terms"
@@ -510,18 +512,24 @@ const CreateInvoice = () => {
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Invoice date"
-                  type="date"
-                  value={formData.invoiceDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, invoiceDate: e.target.value }))}
-                />
-                <Input
-                  label="Due date"
-                  type="date"
-                  value={formData.dueDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
-                />
+                <div>
+                  <Input
+                    label="Invoice date"
+                    type="date"
+                    value={formData.invoiceDate}
+                    onChange={(e) => setFormData(prev => ({ ...prev, invoiceDate: e.target.value }))}
+                    lang="en-GB"
+                  />
+                </div>
+                <div>
+                  <Input
+                    label="Due date"
+                    type="date"
+                    value={formData.dueDate}
+                    onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+                    lang="en-GB"
+                  />
+                </div>
               </div>
             </div>
           </div>
