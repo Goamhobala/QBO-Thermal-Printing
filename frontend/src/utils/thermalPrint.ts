@@ -214,6 +214,27 @@ function generateThermalHTML(data: ThermalPrintData): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Invoice #${data.invoiceNo} - Thermal Print</title>
   <style>
+    @font-face {
+      font-family: 'Merchant Copy';
+      src: url('/fonts/Dot Matrix Fonts/Merchant Copy.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+
+    @font-face {
+      font-family: 'Merchant Copy';
+      src: url('/fonts/Dot Matrix Fonts/Merchant Copy Wide.ttf') format('truetype');
+      font-weight: bold;
+      font-style: normal;
+    }
+
+    @font-face {
+      font-family: 'Merchant Copy Doublesize';
+      src: url('/fonts/Dot Matrix Fonts/Merchant Copy Doublesize.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -221,7 +242,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
     }
 
     body {
-      font-family: 'Courier New', monospace;
+      font-family: 'Merchant Copy';
       font-size: 12px;
       line-height: 1.4;
       color: #000;
@@ -252,6 +273,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
     }
 
     .company-name {
+      font-family: 'Merchant Copy Doublesize', 'Merchant Copy', monospace;
       font-size: 24px;
       font-weight: bold;
       margin-bottom: 8px;
