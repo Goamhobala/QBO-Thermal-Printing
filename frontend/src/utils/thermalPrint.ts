@@ -24,7 +24,7 @@ interface ThermalPrintData {
   balanceDue: number
 }
 
-function convertQBOInvoiceToThermalData(invoice: QBOInvoice): ThermalPrintData {
+function convertQBOInvoiceToThermalData(invoice: QBOInvoice, customer: Customer | null): ThermalPrintData {
   // Extract line items
   const items = invoice.Line
     .filter(line => line.DetailType === 'SalesItemLineDetail' && line.SalesItemLineDetail)
@@ -49,6 +49,15 @@ function convertQBOInvoiceToThermalData(invoice: QBOInvoice): ThermalPrintData {
   if (billAddr?.Line3) addressParts.push(billAddr.Line3)
   const address = addressParts.join(', ')
 
+  // Extract VAT number from customer's PrimaryTaxIdentifier
+  let vatNumber: string | undefined = undefined
+  if (customer?.PrimaryTaxIdentifier) {
+    const numbers = customer.PrimaryTaxIdentifier.match(/\d+/g)
+    if (numbers && numbers.length > 0) {
+      vatNumber = numbers.join('')
+    }
+  }
+
   return {
     invoiceNo: invoice.DocNumber,
     date: formatDate(invoice.TxnDate),
@@ -56,10 +65,11 @@ function convertQBOInvoiceToThermalData(invoice: QBOInvoice): ThermalPrintData {
     terms,
     customer: {
       name: invoice.CustomerRef.name,
+      companyName: customer?.CompanyName,
       address: address || undefined,
       city: billAddr?.City,
       postalCode: billAddr?.PostalCode,
-      // VAT number would be in custom fields - need to check QBO structure
+      vatNumber
     },
     items,
     subtotal,
@@ -397,8 +407,8 @@ function generateThermalHTML(data: ThermalPrintData): string {
 </html>`
 }
 
-export function openThermalPrint(invoice: QBOInvoice): void {
-  const data = convertQBOInvoiceToThermalData(invoice)
+export function openThermalPrint(invoice: QBOInvoice, customer: Customer | null): void {
+  const data = convertQBOInvoiceToThermalData(invoice, customer)
   const html = generateThermalHTML(data)
 
   const printWindow = window.open('', '_blank', 'width=800,height=600')

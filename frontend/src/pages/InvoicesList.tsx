@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Filter, ChevronDown, Printer, Edit, DollarSign, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
-import { useInvoice } from '../contexts'
+import { useInvoice, useCustomer } from '../contexts'
 import { cn } from '../lib/utils'
 import { openThermalPrint } from '../utils/thermalPrint'
 import { formatDate } from '../utils/dateFormat'
@@ -23,6 +23,7 @@ const getInvoiceStatus = (balance: number, dueDate: string): 'paid' | 'unpaid' |
 export default function InvoicesList() {
   const navigate = useNavigate()
   const { data: qboInvoices, loading, error, fetchData } = useInvoice()
+  const { data: customers } = useCustomer()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [customerFilter, setCustomerFilter] = useState<string>('all')
@@ -439,7 +440,10 @@ export default function InvoicesList() {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => openThermalPrint(invoice)}
+                            onClick={() => {
+                              const customer = customers.find(c => c.Id === invoice.CustomerRef.value) || null
+                              openThermalPrint(invoice, customer)
+                            }}
                             className="inline-flex items-center gap-1 px-3 py-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
                             title="Print Receipt"
                           >
