@@ -243,7 +243,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
 
     body {
       font-family: 'Merchant Copy';
-      font-size: 12px;
+      font-size: 16px;
       line-height: 1.4;
       color: #000;
       background: #f0f0f0;
@@ -269,7 +269,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
     }
 
     .large {
-      font-size: 14px;
+      font-size: 18px;
     }
 
     .company-name {
@@ -392,12 +392,12 @@ function generateThermalHTML(data: ThermalPrintData): string {
     <!-- Company Header -->
     <div class="center">
       <div class="company-name">TIMBER 4 U CC</div>
-      <div class="small">14 Lekkerwater Road</div>
-      <div class="small">Sunnydale, Noordhoek</div>
-      <div class="small">Western Cape 7975 ZA</div>
-      <div class="small">+10217855006</div>
-      <div class="small">info@realkey.co.za</div>
-      <div class="small">VAT No. 4910248089</div>
+      <div class="">14 Lekkerwater Road</div>
+      <div class="">Sunnydale, Noordhoek</div>
+      <div class="">Western Cape 7975 ZA</div>
+      <div class="">+10217855006</div>
+      <div class="">info@realkey.co.za</div>
+      <div class="">VAT No. 4910248089</div>
     </div>
 
     <!-- Invoice Type -->
@@ -488,7 +488,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
     </div>
 
     <!-- Footer -->
-    <div class="center small" style="margin-top: 16px;">
+    <div class="center" style="margin-top: 16px;">
       Thank you for your business!
     </div>
   </div>

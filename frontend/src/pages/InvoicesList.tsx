@@ -202,25 +202,14 @@ export default function InvoicesList() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Authentication Required</h2>
-                <p className="text-gray-600 mb-6">
-                  Please log in to QuickBooks to access your invoices.
-                </p>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Please Login to Use</h2>
               </div>
-              <div className="space-y-3">
-                <a
-                  href="/login"
-                  className="block w-full px-4 py-3 bg-green-600 text-white text-center rounded-lg hover:bg-green-700 transition-colors font-semibold"
-                >
-                  Login to QuickBooks
-                </a>
-                <button
-                  onClick={() => fetchData()}
-                  className="block w-full px-4 py-3 bg-gray-100 text-gray-700 text-center rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  Try Again
-                </button>
-              </div>
+              <a
+                href="/login"
+                className="block w-full px-4 py-3 bg-green-600 text-white text-center rounded-lg hover:bg-green-700 transition-colors font-semibold"
+              >
+                Login
+              </a>
             </>
           ) : (
             <>
