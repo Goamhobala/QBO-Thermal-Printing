@@ -56,7 +56,7 @@ export function CustomerCombobox({
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between"
+            className="w-full justify-between bg-white hover:bg-gray-50"
             disabled={disabled}
           >
             {selectedCustomer ? selectedCustomer.DisplayName : "Select customer..."}
@@ -65,23 +65,23 @@ export function CustomerCombobox({
         </PopoverTrigger>
         <PopoverContent className="w-full p-0 bg-white shadow-lg border border-gray-200">
           <Command className="bg-white">
-            <CommandInput placeholder="Search customers..." className="bg-white" />
+            <CommandInput placeholder="Search customers..." className="bg-white border-0" />
             <CommandList className="bg-white">
-              <CommandGroup className="bg-white">
+              <CommandGroup className="bg-white p-1">
                 <CommandItem
                   onSelect={() => {
                     setOpen(false)
                     setDialogOpen(true)
                   }}
-                  className="bg-white hover:bg-gray-100 text-green-600 font-medium cursor-pointer"
+                  className="bg-white hover:bg-green-50 text-green-600 font-medium cursor-pointer"
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Add New Customer
                 </CommandItem>
               </CommandGroup>
-              <CommandSeparator />
-              <CommandGroup className="bg-white">
-                <CommandEmpty className="bg-white">No customer found.</CommandEmpty>
+              <CommandSeparator className="bg-gray-200" />
+              <CommandGroup className="bg-white p-1">
+                <CommandEmpty className="bg-white text-gray-500 py-4">No customer found.</CommandEmpty>
                 {customers.map((customer) => (
                   <CommandItem
                     key={customer.Id}
@@ -90,7 +90,7 @@ export function CustomerCombobox({
                       onValueChange(customer.Id)
                       setOpen(false)
                     }}
-                    className="bg-white hover:bg-gray-100"
+                    className="bg-white hover:bg-gray-50 text-gray-900"
                   >
                     <Check
                       className={cn(
@@ -99,7 +99,7 @@ export function CustomerCombobox({
                       )}
                     />
                     <div className="flex flex-col">
-                      <span>{customer.DisplayName}</span>
+                      <span className="text-gray-900">{customer.DisplayName}</span>
                       {customer.CompanyName && customer.CompanyName !== customer.DisplayName && (
                         <span className="text-xs text-gray-500">{customer.CompanyName}</span>
                       )}
