@@ -662,7 +662,7 @@ const CreateInvoice = () => {
                         onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
                         className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                         min="0"
-                        step="0.01"
+                        step="1"
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -672,7 +672,7 @@ const CreateInvoice = () => {
                         onChange={(e) => updateLineItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
                         className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                         min="0"
-                        step="0.01"
+                        step="0.5"
                       />
                     </td>
                     <td className="px-4 py-3">
