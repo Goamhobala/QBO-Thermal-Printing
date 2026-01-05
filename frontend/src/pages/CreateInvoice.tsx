@@ -67,6 +67,7 @@ const CreateInvoice = () => {
   const [subtotal, setSubtotal] = useState(0)
   const [totalVat, setTotalVat] = useState(0)
   const [total, setTotal] = useState(0)
+  const [displayVatRate, setDisplayVatRate] = useState(15)
   const [tagInput, setTagInput] = useState('')
   const [loadingInvoice, setLoadingInvoice] = useState(false)
   const [invoiceError, setInvoiceError] = useState<string | null>(null)
@@ -279,7 +280,18 @@ const CreateInvoice = () => {
     setSubtotal(sub)
     setTotalVat(vat)
     setTotal(sub + vat)
-  }, [formData.lineItems])
+
+    // Calculate display VAT rate (average rate or from first item)
+    if (formData.lineItems.length > 0 && formData.lineItems[0].taxRateId) {
+      const firstItemTaxRate = getTaxRateFromCode(formData.lineItems[0].taxRateId)
+      setDisplayVatRate(firstItemTaxRate * 100) // Convert to percentage
+    } else if (vat > 0 && sub > 0) {
+      // Calculate from actual values if no tax rate ID available
+      setDisplayVatRate((vat / sub) * 100)
+    } else {
+      setDisplayVatRate(15) // Default to 15%
+    }
+  }, [formData.lineItems, taxRates, taxCodes])
 
   const addLineItem = () => {
     // Find default tax code (15% SA for South Africa)
@@ -764,7 +776,7 @@ const CreateInvoice = () => {
                 <span className="font-medium">R{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm border-b border-gray-200 pb-3">
-                <span className="text-gray-600">VAT @ 15%</span>
+                <span className="text-gray-600">VAT @ {displayVatRate.toFixed(0)}%</span>
                 <span className="font-medium">R{totalVat.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-lg font-semibold">
