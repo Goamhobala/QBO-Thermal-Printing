@@ -1,5 +1,6 @@
 export { CustomerProvider, useCustomer } from './CustomerContext'
 export { ItemProvider, useItem } from './ItemContext'
 export { InvoiceProvider, useInvoice } from './InvoiceContext'
-export { TaxCodeProvider, useTaxCode } from './TaxRateContext'
+export { TaxCodeProvider, useTaxCode } from './TaxCodeContext'
+export { TaxRateProvider, useTaxRate } from './TaxRateContext'
 export { TermProvider, useTerm } from './TermContext'

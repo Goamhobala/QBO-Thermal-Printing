@@ -1,4 +1,4 @@
-import { QBOInvoice, InvoiceFormData, Customer } from '../types'
+import { QBOInvoice, InvoiceFormData, Customer, TaxRate, TaxCode } from '../types'
 import { formatDate } from './dateFormat'
 
 // Customer lookup - will be set by the component that uses this module
@@ -6,6 +6,46 @@ let customerLookup: ((customerId: string) => Customer | null) | null = null
 
 export function setCustomerLookup(lookup: (customerId: string) => Customer | null) {
   customerLookup = lookup
+}
+
+// Tax rate lookup - will be set by the component that uses this module
+let taxRateLookup: ((taxRateId: string) => TaxRate | null) | null = null
+
+export function setTaxRateLookup(lookup: (taxRateId: string) => TaxRate | null) {
+  taxRateLookup = lookup
+}
+
+// Tax code lookup - will be set by the component that uses this module
+let taxCodeLookup: ((taxCodeId: string) => TaxCode | null) | null = null
+
+export function setTaxCodeLookup(lookup: (taxCodeId: string) => TaxCode | null) {
+  taxCodeLookup = lookup
+}
+
+// Helper function to get the actual tax rate value from a tax code
+function getTaxRateValue(taxCodeId: string): number {
+  if (!taxCodeLookup || !taxRateLookup) {
+    return 0.15 // Default to 15% if lookups not available
+  }
+
+  const taxCode = taxCodeLookup(taxCodeId)
+  if (!taxCode) {
+    return 0.15 // Default to 15%
+  }
+
+  // Get the first tax rate from SalesTaxRateList
+  const taxRateRef = taxCode.SalesTaxRateList?.TaxRateDetail?.[0]?.TaxRateRef
+  if (!taxRateRef) {
+    return 0.15 // Default to 15%
+  }
+
+  const taxRate = taxRateLookup(taxRateRef.value)
+  if (!taxRate) {
+    return 0.15 // Default to 15%
+  }
+
+  // Convert percentage to decimal (e.g., 15 -> 0.15)
+  return taxRate.RateValue / 100
 }
 
 interface ThermalPrintData {
@@ -27,6 +67,7 @@ interface ThermalPrintData {
   }>
   subtotal: number
   vat: number
+  vatRate: number // Tax rate as percentage (e.g., 15 for 15%)
   total: number
   balanceDue: number
 }
@@ -46,6 +87,17 @@ function convertQBOInvoiceToThermalData(invoice: QBOInvoice): ThermalPrintData {
   // Calculate subtotal (total - tax)
   const vat = invoice.TxnTaxDetail?.TotalTax || 0
   const subtotal = invoice.TotalAmt - vat
+
+  // Get tax rate from the first line item's tax code
+  let vatRate = 15 // Default to 15%
+  const firstLineWithTax = invoice.Line.find(
+    line => line.DetailType === 'SalesItemLineDetail' && line.SalesItemLineDetail?.TaxCodeRef
+  )
+  if (firstLineWithTax?.SalesItemLineDetail?.TaxCodeRef) {
+    const taxCodeId = firstLineWithTax.SalesItemLineDetail.TaxCodeRef.value
+    const rateDecimal = getTaxRateValue(taxCodeId)
+    vatRate = rateDecimal * 100 // Convert to percentage
+  }
 
   // Extract terms from custom field or use default
   const termsField = invoice.CustomField?.find(f => f.Name.toLowerCase().includes('term'))
@@ -84,6 +136,7 @@ function convertQBOInvoiceToThermalData(invoice: QBOInvoice): ThermalPrintData {
     items,
     subtotal,
     vat,
+    vatRate,
     total: invoice.TotalAmt,
     balanceDue: invoice.Balance
   }
@@ -101,6 +154,16 @@ function convertFormDataToThermalData(
   const subtotal = formData.lineItems.reduce((sum, item) => sum + item.amount, 0)
   const vat = formData.lineItems.reduce((sum, item) => sum + item.vatAmount, 0)
   const total = subtotal + vat
+
+  // Calculate VAT rate from the first line item
+  let vatRate = 15 // Default to 15%
+  if (formData.lineItems.length > 0 && formData.lineItems[0].taxRateId) {
+    const taxRateDecimal = getTaxRateValue(formData.lineItems[0].taxRateId)
+    vatRate = taxRateDecimal * 100 // Convert to percentage
+  } else if (vat > 0 && subtotal > 0) {
+    // Calculate from actual values if no tax rate ID available
+    vatRate = (vat / subtotal) * 100
+  }
 
   // Build address from customer BillAddr
   const billAddr = customer?.BillAddr
@@ -138,6 +201,7 @@ function convertFormDataToThermalData(
     items,
     subtotal,
     vat,
+    vatRate,
     total,
     balanceDue: total
   }
@@ -377,7 +441,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
         <span>R${data.subtotal.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
       </div>
       <div class="total-row">
-        <span>VAT @ 15%:</span>
+        <span>VAT @ ${data.vatRate.toFixed(0)}%:</span>
         <span>R${data.vat.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
       </div>
       <div class="total-row bold large">

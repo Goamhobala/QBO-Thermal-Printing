@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Filter, ChevronDown, Printer, Edit, DollarSign, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
-import { useInvoice, useCustomer } from '../contexts'
+import { useInvoice, useCustomer, useTaxRate, useTaxCode } from '../contexts'
 import { cn } from '../lib/utils'
-import { openThermalPrint, setCustomerLookup } from '../utils/thermalPrint'
+import { openThermalPrint, setCustomerLookup, setTaxRateLookup, setTaxCodeLookup } from '../utils/thermalPrint'
 import { formatDate } from '../utils/dateFormat'
 
 const ITEMS_PER_PAGE = 10
@@ -24,6 +24,8 @@ export default function InvoicesList() {
   const navigate = useNavigate()
   const { data: qboInvoices, loading, error, fetchData } = useInvoice()
   const { data: customers } = useCustomer()
+  const { data: taxRates, fetchData: fetchTaxRates } = useTaxRate()
+  const { data: taxCodes, fetchData: fetchTaxCodes } = useTaxCode()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [customerFilter, setCustomerFilter] = useState<string>('all')
@@ -33,10 +35,12 @@ export default function InvoicesList() {
   const [sortField, setSortField] = useState<SortField>('date')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
-  // Fetch invoices on mount
+  // Fetch data on mount
   useEffect(() => {
     fetchData()
-  }, [fetchData])
+    fetchTaxRates()
+    fetchTaxCodes()
+  }, [fetchData, fetchTaxRates, fetchTaxCodes])
 
   // Set up customer lookup for thermal printing
   useEffect(() => {
@@ -44,6 +48,20 @@ export default function InvoicesList() {
       return customers.find(c => c.Id === customerId) || null
     })
   }, [customers])
+
+  // Set up tax rate lookup for thermal printing
+  useEffect(() => {
+    setTaxRateLookup((taxRateId: string) => {
+      return taxRates.find(tr => tr.Id === taxRateId) || null
+    })
+  }, [taxRates])
+
+  // Set up tax code lookup for thermal printing
+  useEffect(() => {
+    setTaxCodeLookup((taxCodeId: string) => {
+      return taxCodes.find(tc => tc.Id === taxCodeId) || null
+    })
+  }, [taxCodes])
 
   // Get unique customers for filter
   const uniqueCustomers = useMemo(() => {

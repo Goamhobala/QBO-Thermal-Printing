@@ -1,11 +1,11 @@
 import { createQBOContext } from '../utils/createQBOContext'
-import { TaxCode } from '../types'
+import { TaxRate } from '../types'
 
-const { Provider, useContext: useTaxCodeContext } = createQBOContext<TaxCode>({
-  endpoint: '/taxcodes',
-  dataKey: 'TaxCode',
-  contextName: 'TaxCode'
+const { Provider, useContext: useTaxRateContext } = createQBOContext<TaxRate>({
+  endpoint: '/taxrates',
+  dataKey: 'TaxRate',
+  contextName: 'TaxRate'
 })
 
-export const TaxCodeProvider = Provider
-export const useTaxCode = useTaxCodeContext
+export const TaxRateProvider = Provider
+export const useTaxRate = useTaxRateContext

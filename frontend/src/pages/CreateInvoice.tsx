@@ -1,14 +1,14 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { LineItem, InvoiceFormData } from '../types'
-import { useCustomer, useItem, useTaxCode, useTerm, useInvoice } from '../contexts'
+import { useCustomer, useItem, useTaxCode, useTaxRate, useTerm, useInvoice } from '../contexts'
 import { useCreateInvoice } from '../hooks/useCreateInvoice'
 import Input from '../components/Input'
 import Select from '../components/Select'
 import Button from '../components/Button'
 import Textarea from '../components/Textarea'
 import { ItemCombobox } from '../components/ItemCombobox'
-import { openThermalPrintFromForm } from '../utils/thermalPrint'
+import { openThermalPrintFromForm, setTaxRateLookup, setTaxCodeLookup } from '../utils/thermalPrint'
 
 
 const CreateInvoice = () => {
@@ -19,6 +19,7 @@ const CreateInvoice = () => {
   const { data: customers, loading: customersLoading, error: customersError, fetchData: fetchCustomers } = useCustomer()
   const { data: items, loading: itemsLoading, error: itemsError, fetchData: fetchItems } = useItem()
   const { data: taxCodes, loading: taxCodesLoading, error: taxCodesError, fetchData: fetchTaxCodes } = useTaxCode()
+  const { data: taxRates, fetchData: fetchTaxRates } = useTaxRate()
   const { data: terms, loading: termsLoading, error: termsError, fetchData: fetchTerms } = useTerm()
   const { data: invoices } = useInvoice()
   const { createInvoice, loading: createLoading, error: createError } = useCreateInvoice()
@@ -75,8 +76,23 @@ const CreateInvoice = () => {
     fetchCustomers()
     fetchItems()
     fetchTaxCodes()
+    fetchTaxRates()
     fetchTerms()
-  }, [fetchCustomers, fetchItems, fetchTaxCodes, fetchTerms])
+  }, [fetchCustomers, fetchItems, fetchTaxCodes, fetchTaxRates, fetchTerms])
+
+  // Set up tax rate lookup for thermal printing
+  useEffect(() => {
+    setTaxRateLookup((taxRateId: string) => {
+      return taxRates.find(tr => tr.Id === taxRateId) || null
+    })
+  }, [taxRates])
+
+  // Set up tax code lookup for thermal printing
+  useEffect(() => {
+    setTaxCodeLookup((taxCodeId: string) => {
+      return taxCodes.find(tc => tc.Id === taxCodeId) || null
+    })
+  }, [taxCodes])
 
   // Fetch invoice data when in edit mode
   useEffect(() => {
