@@ -75,6 +75,7 @@ export function AddCustomerDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    e.stopPropagation()
     setError(null)
 
     // Validate required field

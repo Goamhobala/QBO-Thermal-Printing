@@ -17,7 +17,7 @@ const CreateInvoice = () => {
   const navigate = useNavigate()
   const isEditMode = Boolean(id)
 
-  const { data: customers, loading: customersLoading, error: customersError, fetchData: fetchCustomers } = useCustomer()
+  const { data: customers, loading: customersLoading, error: customersError, fetchData: fetchCustomers, refetch: refetchCustomers } = useCustomer()
   const { data: items, loading: itemsLoading, error: itemsError, fetchData: fetchItems } = useItem()
   const { data: taxCodes, loading: taxCodesLoading, error: taxCodesError, fetchData: fetchTaxCodes } = useTaxCode()
   const { data: taxRates, fetchData: fetchTaxRates } = useTaxRate()
@@ -479,7 +479,7 @@ const CreateInvoice = () => {
                       setFormData(prev => ({ ...prev, customer: selectedCustomer }))
                     }
                   }}
-                  onCustomerCreated={fetchCustomers}
+                  onCustomerCreated={refetchCustomers}
                   disabled={customersLoading}
                 />
               </div>

@@ -39,13 +39,17 @@ export function CustomerCombobox({
 
   const selectedCustomer = customers.find((customer) => customer.Id === value)
 
-  const handleCustomerCreated = (newCustomer: Customer) => {
-    onValueChange(newCustomer.Id)
+  const handleCustomerCreated = async (newCustomer: Customer) => {
     setDialogOpen(false)
     setOpen(false)
+
+    // Refresh customer list first
     if (onCustomerCreated) {
-      onCustomerCreated()
+      await onCustomerCreated()
     }
+
+    // Then select the newly created customer
+    onValueChange(newCustomer.Id)
   }
 
   return (
