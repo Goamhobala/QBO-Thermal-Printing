@@ -244,7 +244,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
     body {
       font-family: 'Merchant Copy';
       font-size: 16px;
-      line-height: 1.2;
+      line-height: 1;
       color: #000;
       background: #f0f0f0;
       padding: 20px;
@@ -274,9 +274,9 @@ function generateThermalHTML(data: ThermalPrintData): string {
 
     .company-name {
       font-family: 'Merchant Copy Doublesize', 'Merchant Copy', monospace;
-      font-size: 24px;
+      font-size: 20px;
       font-weight: bold;
-      margin-bottom: 8px;
+      margin-bottom: 4px;
     }
 
     .section {
@@ -293,12 +293,12 @@ function generateThermalHTML(data: ThermalPrintData): string {
       display: flex;
       justify-content: space-between;
       margin: 4px 0;
-      font-size: 16px;
+      font-size: 14px;
     }
 
     .row-label {
-      font-weight: 700;
-      font-size: 16px;
+      font-weight: normal;
+      font-size: 14px;
     }
 
     .item {
@@ -366,7 +366,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
     .small {
       font-size: 14px;
       font-weight: normal;
-      line-height: 1.1;
+      line-height: 1.0;
     }
 
     .bill-to-header {
