@@ -124,6 +124,8 @@ const CreateInvoice = () => {
 
     const invoice = fetchedInvoice
 
+    console.log('📋 Populating form with invoice data:', invoice)
+
     // Find the customer
     const customer = customers.find(c => c.Id === invoice.CustomerRef?.value) || null
 
@@ -132,24 +134,55 @@ const CreateInvoice = () => {
       .filter((line: any) => line.DetailType === 'SalesItemLineDetail')
       .map((line: any, index: number) => {
         const detail = line.SalesItemLineDetail
-        const item = items.find(i => i.Id === detail?.ItemRef?.value)
+        const itemId = detail?.ItemRef?.value
+        const item = items.find(i => i.Id === itemId)
+
+        console.log('Line item:', {
+          itemId,
+          itemRef: detail?.ItemRef,
+          foundItem: item,
+          taxCodeRef: detail?.TaxCodeRef
+        })
+
+        // Calculate VAT amount
+        const qty = detail?.Qty || 1
+        const rate = detail?.UnitPrice || 0
+        const amount = line.Amount || 0
+        const taxCodeId = detail?.TaxCodeRef?.value
+
+        // Find the selected tax code and calculate VAT (15% for South Africa)
+        const selectedTaxCode = availableTaxCodes.find(tc => tc.Id === taxCodeId)
+        const vatAmount = selectedTaxCode ? amount * 0.15 : 0
+
+        console.log('Tax calculation:', {
+          taxCodeId,
+          selectedTaxCode,
+          amount,
+          vatAmount
+        })
 
         return {
           id: line.Id || `line-${index}`,
-          itemId: detail?.ItemRef?.value,
+          itemId: itemId || undefined,
           productName: detail?.ItemRef?.name || '',
           sku: item?.Sku || '',
           description: line.Description || '',
-          quantity: detail?.Qty || 1,
-          rate: detail?.UnitPrice || 0,
-          amount: line.Amount || 0,
-          vatAmount: 0, // Will be calculated
-          taxRateId: detail?.TaxCodeRef?.value
+          quantity: qty,
+          rate: rate,
+          amount: amount,
+          vatAmount: vatAmount,
+          taxRateId: taxCodeId || undefined
         }
       })
 
-    // Extract terms (if available)
-    const termsName = invoice.SalesTermRef?.value || ''
+    // Extract terms - use the Name property, not value (value is the ID)
+    const termsName = invoice.SalesTermRef?.name || ''
+
+    console.log('Terms:', {
+      SalesTermRef: invoice.SalesTermRef,
+      termsName,
+      availableTerms: availableTerms.map(t => t.Name)
+    })
 
     // Parse custom fields for tags
     const tags = invoice.CustomField
@@ -171,7 +204,7 @@ const CreateInvoice = () => {
       memoOnStatement: invoice.PrivateNote || ''
     })
 
-  }, [fetchedInvoice, isEditMode, customers, items, taxCodes, terms, customersLoading, itemsLoading, taxCodesLoading, termsLoading])
+  }, [fetchedInvoice, isEditMode, customers, items, taxCodes, terms, customersLoading, itemsLoading, taxCodesLoading, termsLoading, availableTaxCodes, availableTerms])
 
   // Update invoice number when creating a new invoice
   useEffect(() => {
