@@ -277,6 +277,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
       font-size: 20px;
       font-weight: bold;
       margin-bottom: 4px;
+      margin-top: 4px;
     }
 
     .section {
@@ -389,7 +390,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
     @media print {
       body {
         background: white;
-        padding: 0;
+        padding: 5mm;
         margin: 0;
       }
 
