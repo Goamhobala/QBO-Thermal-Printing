@@ -1,11 +1,14 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Filter, ChevronDown, Printer, Edit, DollarSign, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, Filter, ChevronDown, Printer, Edit, DollarSign, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { useInvoice } from '../contexts'
 import { cn } from '../lib/utils'
 import { openThermalPrint } from '../utils/thermalPrint'
 
 const ITEMS_PER_PAGE = 10
+
+type SortField = 'date' | 'number' | 'customer' | 'amount' | 'status'
+type SortDirection = 'asc' | 'desc'
 
 // Helper to determine invoice status based on QBO data
 const getInvoiceStatus = (balance: number, dueDate: string): 'paid' | 'unpaid' | 'overdue' | 'deposited' => {
@@ -25,6 +28,8 @@ export default function InvoicesList() {
   const [dateFilter, setDateFilter] = useState<string>('last-12-months')
   const [currentPage, setCurrentPage] = useState(1)
   const [showFilters, setShowFilters] = useState(false)
+  const [sortField, setSortField] = useState<SortField>('date')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
   // Fetch invoices on mount
   useEffect(() => {
@@ -37,9 +42,22 @@ export default function InvoicesList() {
     return Array.from(customers)
   }, [qboInvoices])
 
-  // Filter invoices
+  // Handle column sorting
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      // New field, default to ascending
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  // Filter and sort invoices
   const filteredInvoices = useMemo(() => {
-    return qboInvoices.filter(invoice => {
+    // First, filter invoices
+    const filtered = qboInvoices.filter(invoice => {
       // Search filter
       const matchesSearch = searchTerm === '' ||
         invoice.DocNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -57,7 +75,37 @@ export default function InvoicesList() {
 
       return matchesSearch && matchesStatus && matchesCustomer && matchesDate
     })
-  }, [qboInvoices, searchTerm, statusFilter, customerFilter])
+
+    // Then, sort the filtered results
+    const sorted = [...filtered].sort((a, b) => {
+      let comparison = 0
+
+      switch (sortField) {
+        case 'date':
+          comparison = new Date(a.TxnDate).getTime() - new Date(b.TxnDate).getTime()
+          break
+        case 'number':
+          comparison = a.DocNumber.localeCompare(b.DocNumber, undefined, { numeric: true })
+          break
+        case 'customer':
+          comparison = a.CustomerRef.name.localeCompare(b.CustomerRef.name)
+          break
+        case 'amount':
+          comparison = a.TotalAmt - b.TotalAmt
+          break
+        case 'status':
+          const statusA = getInvoiceStatus(a.Balance, a.DueDate)
+          const statusB = getInvoiceStatus(b.Balance, b.DueDate)
+          const statusOrder = { paid: 0, unpaid: 1, overdue: 2, deposited: 3 }
+          comparison = statusOrder[statusA] - statusOrder[statusB]
+          break
+      }
+
+      return sortDirection === 'asc' ? comparison : -comparison
+    })
+
+    return sorted
+  }, [qboInvoices, searchTerm, statusFilter, customerFilter, sortField, sortDirection])
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -295,19 +343,69 @@ export default function InvoicesList() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
+                    <button
+                      onClick={() => handleSort('date')}
+                      className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                    >
+                      Date
+                      {sortField === 'date' ? (
+                        sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                      ) : (
+                        <ArrowUpDown className="h-3 w-3 opacity-40" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    No.
+                    <button
+                      onClick={() => handleSort('number')}
+                      className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                    >
+                      No.
+                      {sortField === 'number' ? (
+                        sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                      ) : (
+                        <ArrowUpDown className="h-3 w-3 opacity-40" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Customer
+                    <button
+                      onClick={() => handleSort('customer')}
+                      className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                    >
+                      Customer
+                      {sortField === 'customer' ? (
+                        sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                      ) : (
+                        <ArrowUpDown className="h-3 w-3 opacity-40" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Amount
+                    <button
+                      onClick={() => handleSort('amount')}
+                      className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                    >
+                      Amount
+                      {sortField === 'amount' ? (
+                        sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                      ) : (
+                        <ArrowUpDown className="h-3 w-3 opacity-40" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    <button
+                      onClick={() => handleSort('status')}
+                      className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                    >
+                      Status
+                      {sortField === 'status' ? (
+                        sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                      ) : (
+                        <ArrowUpDown className="h-3 w-3 opacity-40" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
