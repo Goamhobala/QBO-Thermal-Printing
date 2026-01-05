@@ -8,7 +8,7 @@ import Select from '../components/Select'
 import Button from '../components/Button'
 import Textarea from '../components/Textarea'
 import { ItemCombobox } from '../components/ItemCombobox'
-import { openThermalPrint } from '../utils/thermalPrint'
+import { openThermalPrintFromForm } from '../utils/thermalPrint'
 
 
 const CreateInvoice = () => {
@@ -231,7 +231,7 @@ const CreateInvoice = () => {
 
     if (result) {
       // Success! Open thermal print and navigate back to invoice list
-      openThermalPrint(result.Invoice)
+      openThermalPrintFromForm(formData, formData.customer)
       navigate('/home')
     }
   }

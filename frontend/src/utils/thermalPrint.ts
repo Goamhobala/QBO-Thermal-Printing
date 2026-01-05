@@ -1,4 +1,5 @@
 import { QBOInvoice, InvoiceFormData, Customer } from '../types'
+import { formatDate } from './dateFormat'
 
 interface ThermalPrintData {
   invoiceNo: string
@@ -21,15 +22,6 @@ interface ThermalPrintData {
   vat: number
   total: number
   balanceDue: number
-}
-
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('en-ZA', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  })
 }
 
 function convertQBOInvoiceToThermalData(invoice: QBOInvoice): ThermalPrintData {

@@ -4,6 +4,7 @@ import { Search, Filter, ChevronDown, Printer, Edit, DollarSign, ChevronLeft, Ch
 import { useInvoice } from '../contexts'
 import { cn } from '../lib/utils'
 import { openThermalPrint } from '../utils/thermalPrint'
+import { formatDate } from '../utils/dateFormat'
 
 const ITEMS_PER_PAGE = 10
 
@@ -145,11 +146,6 @@ export default function InvoicesList() {
     }
   }
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr)
-    return date.toLocaleDateString('en-ZA', { day: '2-digit', month: '2-digit', year: 'numeric' })
-      .replace(/\//g, '/')
-  }
 
   // Show loading state
   if (loading) {
