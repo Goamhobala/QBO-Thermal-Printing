@@ -94,6 +94,22 @@ const CreateInvoice = () => {
     })
   }, [taxCodes])
 
+  // Helper function to get tax rate value from tax code ID
+  const getTaxRateFromCode = (taxCodeId: string): number => {
+    const taxCode = taxCodes.find(tc => tc.Id === taxCodeId)
+    if (!taxCode) return 0.15 // Default to 15%
+
+    // Get the first tax rate from SalesTaxRateList
+    const taxRateRef = taxCode.SalesTaxRateList?.TaxRateDetail?.[0]?.TaxRateRef
+    if (!taxRateRef) return 0.15 // Default to 15%
+
+    const taxRate = taxRates.find(tr => tr.Id === taxRateRef.value)
+    if (!taxRate) return 0.15 // Default to 15%
+
+    // Return as decimal (e.g., 15 -> 0.15)
+    return taxRate.RateValue / 100
+  }
+
   // Fetch invoice data when in edit mode
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -166,13 +182,11 @@ const CreateInvoice = () => {
         const amount = line.Amount || 0
         const taxCodeId = detail?.TaxCodeRef?.value
 
-        // Find the selected tax code and calculate VAT (15% for South Africa)
-        const selectedTaxCode = availableTaxCodes.find(tc => tc.Id === taxCodeId)
-        const vatAmount = selectedTaxCode ? amount * 0.15 : 0
+        // Calculate VAT using dynamic tax rate
+        const vatAmount = taxCodeId ? amount * getTaxRateFromCode(taxCodeId) : 0
 
         console.log('Tax calculation:', {
           taxCodeId,
-          selectedTaxCode,
           amount,
           vatAmount
         })
@@ -280,7 +294,7 @@ const CreateInvoice = () => {
       productName: '',
       sku: '',
       description: '',
-      quantity: 1,
+      quantity: 0,
       rate: 0,
       amount: 0,
       vatAmount: 0,
@@ -325,12 +339,9 @@ const CreateInvoice = () => {
 
             updated.amount = qty * rate
 
-            // Find the selected tax code and calculate VAT
-            const selectedTaxCode = availableTaxCodes.find(tc => tc.Id === taxCodeId)
-            if (selectedTaxCode) {
-              // For South Africa, use 15% VAT (hardcoded for now)
-              // TODO: Parse tax rate from SalesTaxRateList if needed
-              const taxRateDecimal = 0.15 // 15% VAT
+            // Calculate VAT using dynamic tax rate
+            if (taxCodeId) {
+              const taxRateDecimal = getTaxRateFromCode(taxCodeId)
               updated.vatAmount = updated.amount * taxRateDecimal
             } else {
               updated.vatAmount = 0
