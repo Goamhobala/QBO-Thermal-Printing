@@ -466,9 +466,14 @@ export default function InvoicesList() {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => openThermalPrint(invoice)}
+                            onClick={() => {
+                              // Find the customer for this invoice and pass it directly
+                              const customer = customers.find(c => c.Id === invoice.CustomerRef.value) || null
+                              openThermalPrint(invoice, customer)
+                            }}
                             className="inline-flex items-center gap-1 px-3 py-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
                             title="Print Receipt"
+                            disabled={!customers || customers.length === 0}
                           >
                             <Printer className="h-4 w-4" />
                             <span className="text-xs">Print</span>

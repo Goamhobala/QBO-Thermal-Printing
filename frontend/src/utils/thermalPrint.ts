@@ -72,9 +72,8 @@ interface ThermalPrintData {
   balanceDue: number
 }
 
-function convertQBOInvoiceToThermalData(invoice: QBOInvoice): ThermalPrintData {
-  // Look up customer from the invoice's CustomerRef
-  const customer = customerLookup ? customerLookup(invoice.CustomerRef.value) : null
+function convertQBOInvoiceToThermalData(invoice: QBOInvoice, customer: Customer | null): ThermalPrintData {
+  // Customer is now passed as parameter instead of looked up via closure
 
   // Extract line items
   const items = invoice.Line
@@ -481,8 +480,11 @@ function generateThermalHTML(data: ThermalPrintData): string {
 </html>`
 }
 
-export function openThermalPrint(invoice: QBOInvoice): void {
-  const data = convertQBOInvoiceToThermalData(invoice)
+export function openThermalPrint(invoice: QBOInvoice, customer?: Customer | null): void {
+  // If customer is provided directly, use it; otherwise fall back to lookup
+  const customerToUse = customer !== undefined ? customer : (customerLookup ? customerLookup(invoice.CustomerRef.value) : null)
+
+  const data = convertQBOInvoiceToThermalData(invoice, customerToUse)
   const html = generateThermalHTML(data)
 
   const printWindow = window.open('', '_blank', 'width=800,height=600')
