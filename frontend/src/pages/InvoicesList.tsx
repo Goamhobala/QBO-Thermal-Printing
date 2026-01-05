@@ -188,13 +188,9 @@ export default function InvoicesList() {
 
   // Show error state
   if (error) {
-    // Check if it's an authentication error
-    const isAuthError = error.includes('Not authenticated') || error.includes('401')
-
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white rounded-lg border border-orange-200 p-8 max-w-md shadow-lg">
-          {isAuthError ? (
             <>
               <div className="text-center mb-6">
                 <div className="mx-auto w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
@@ -211,26 +207,6 @@ export default function InvoicesList() {
                 Login
               </a>
             </>
-          ) : (
-            <>
-              <h2 className="text-xl font-bold text-red-600 mb-2">Error Loading Invoices</h2>
-              <p className="text-gray-700 mb-4">{error}</p>
-              <div className="space-y-2">
-                <button
-                  onClick={() => fetchData()}
-                  className="block w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  Retry
-                </button>
-                <a
-                  href="/login"
-                  className="block w-full px-4 py-2 bg-gray-100 text-gray-700 text-center rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  Login Again
-                </a>
-              </div>
-            </>
-          )}
         </div>
       </div>
     )
