@@ -397,7 +397,7 @@ app.get("/customers", async (req, res) => {
 
     try {
         const data = await queryApi(
-            "SELECT * FROM Customer MAXRESULTS 10000",
+            "SELECT * FROM Customer MAXRESULTS 1000",
             req.session.realmId,
             req.session.accessToken
         )
@@ -614,26 +614,27 @@ app.patch("/invoices/:id/payment", async (req, res) => {
             return res.status(404).json({ error: "Invoice not found" })
         }
 
-        // Prepare sparse update payload
-        // QuickBooks requires Id, SyncToken, and the fields to update
-        const updatePayload: any = {
-            Id: invoice.Id,
-            SyncToken: invoice.SyncToken,
-            sparse: true
+        const paymentBody = {
+            TotalAmt: invoice.QueryResponse!.Invoice!.Balance,
+            CustomerRef: invoice.QueryResponse!.Invoice!.CustomerRef,
+            LinkedTxn: [
+                {
+                    TxnId: invoice.QueryResponse!.Invoice!.Id,
+                    TxnType: "Invoice"
+                }
+            ]
         }
+        // Create a payment object
 
-        if (markAsPaid) {
-            // Mark as paid: set Balance to 0
-            // Note: In a real scenario, you'd create a Payment object
-            // For simplicity, we're using sparse update to set balance directly
-            updatePayload.Balance = 0
-        } else {
-            // Mark as unpaid: restore Balance to TotalAmt
-            updatePayload.Balance = invoice.TotalAmt
-        }
+        // if (markAsPaid) {
+        //     updatePayload.Balance = 0
+        // } else {
+        //     // Mark as unpaid: restore Balance to TotalAmt
+        //     updatePayload.Balance = invoice.TotalAmt
+        // }
 
         // Perform sparse update
-        const url = `${QBO_BASE_URL}/${req.session.realmId}/invoice`
+        const url = `${QBO_BASE_URL}/${req.session.realmId}/payments`
         const response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -641,7 +642,7 @@ app.patch("/invoices/:id/payment", async (req, res) => {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(updatePayload)
+            body: JSON.stringify(paymentBody)
         })
 
         if (!response.ok) {
@@ -656,6 +657,30 @@ app.patch("/invoices/:id/payment", async (req, res) => {
         console.error("Error updating invoice payment status:", error)
         res.status(500).json({
             error: error instanceof Error ? error.message : "Failed to update invoice payment status"
+        })
+    }
+})
+
+app.post("/payments", async(req, res)=>{
+      if (!req.session.accessToken || !req.session.realmId) {
+        return res.status(401).json({ error: "Not authenticated. Please login first." })
+    }
+    try{
+        const paymentData = req.body
+        const data = await createEntity(
+            "payment",
+            paymentData,
+            req.session.realmId,
+            req.session.accessToken
+        )
+
+        console.log('QuickBooks response:', JSON.stringify(data, null, 2))
+        res.json(data)
+
+    }catch(error){
+        console.error("Error creating customer:", error)
+        res.status(500).json({
+            error: error instanceof Error ? error.message : "Failed to create customer in QuickBooks"
         })
     }
 })
