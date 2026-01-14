@@ -22,7 +22,7 @@ const getInvoiceStatus = (balance: number, dueDate: string): 'paid' | 'unpaid' |
 
 export default function InvoicesList() {
   const navigate = useNavigate()
-  const { data: qboInvoices, loading, error, fetchData } = useInvoice()
+  const { data: qboInvoices, loading, error, fetchData, updateItem } = useInvoice()
   const { data: customers, fetchData: fetchCustomers } = useCustomer()
   const { data: taxRates, fetchData: fetchTaxRates } = useTaxRate()
   const { data: taxCodes, fetchData: fetchTaxCodes } = useTaxCode()
@@ -175,9 +175,13 @@ export default function InvoicesList() {
   }
 
   // Toggle payment status for an invoice
-  const handlePaymentToggle = useCallback(async (invoiceId: string, currentStatus: string) => {
+  const handlePaymentToggle = useCallback(async (invoiceId: string, currentStatus: string, currentBalance: number, totalAmt: number) => {
     const isPaid = currentStatus === 'paid'
     setUpdatingPayment(invoiceId)
+
+    // Optimistically update the UI immediately
+    const previousBalance = currentBalance
+    updateItem(invoiceId, { Balance: isPaid ? totalAmt : 0 })
 
     try {
       const response = await fetch(`/invoices/${invoiceId}/payment`, {
@@ -193,16 +197,15 @@ export default function InvoicesList() {
         const error = await response.json()
         throw new Error(error.error || 'Failed to update payment status')
       }
-
-      // Refresh the invoices list to reflect the change
-      await fetchData()
     } catch (error) {
+      // Revert optimistic update on error
+      updateItem(invoiceId, { Balance: previousBalance })
       console.error('Error toggling payment status:', error)
       alert(error instanceof Error ? error.message : 'Failed to update payment status')
     } finally {
       setUpdatingPayment(null)
     }
-  }, [fetchData])
+  }, [updateItem])
 
 
   // Show loading state
@@ -483,7 +486,7 @@ export default function InvoicesList() {
                             <span className="text-xs">Edit</span>
                           </button>
                           <button
-                            onClick={() => handlePaymentToggle(invoice.Id, status)}
+                            onClick={() => handlePaymentToggle(invoice.Id, status, invoice.Balance, invoice.TotalAmt)}
                             disabled={updatingPayment === invoice.Id}
                             className={cn(
                               "inline-flex items-center gap-1 px-3 py-1.5 rounded transition-colors",

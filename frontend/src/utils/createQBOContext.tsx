@@ -6,6 +6,7 @@ interface QBOContextType<T> {
   error: string | null
   fetchData: () => Promise<void>
   refetch: () => Promise<void>
+  updateItem: (id: string, updates: Partial<T>) => void
 }
 
 interface CreateQBOContextOptions {
@@ -62,6 +63,15 @@ export const createQBOContext = <T,>({ endpoint, dataKey, contextName }: CreateQ
       await fetchData()
     }, [fetchData])
 
+    // Optimistically update a single item by ID
+    const updateItem = useCallback((id: string, updates: Partial<T>) => {
+      setData(prevData =>
+        prevData.map(item =>
+          (item as any).Id === id ? { ...item, ...updates } : item
+        )
+      )
+    }, [])
+
     return (
       <Context.Provider
         value={{
@@ -69,7 +79,8 @@ export const createQBOContext = <T,>({ endpoint, dataKey, contextName }: CreateQ
           loading,
           error,
           fetchData,
-          refetch
+          refetch,
+          updateItem
         }}
       >
         {children}
