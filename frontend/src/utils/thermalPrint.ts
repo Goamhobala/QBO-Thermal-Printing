@@ -281,7 +281,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
 
     .section {
       margin: 12px 0;
-      padding: 8px 0;
+      padding: 8px 2px;
       border-top: 1px dashed #000;
     }
 
@@ -310,14 +310,14 @@ function generateThermalHTML(data: ThermalPrintData): string {
       display: flex;
       justify-content: space-between;
       border-bottom: 1px solid #000;
-      padding-bottom: 4px;
+      padding: 2px 0 8px 0;
       margin-bottom: 8px;
     }
 
     .item-row {
       display: flex;
       justify-content: space-between;
-      margin: 4px 0;
+      margin: 4px;
     }
 
     .item-desc {
@@ -325,6 +325,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
       font-size: 16px;
       line-height: 1.2;
       font-weight: normal;
+      padding: 0;
     }
 
     .item-amount {
@@ -332,11 +333,12 @@ function generateThermalHTML(data: ThermalPrintData): string {
       white-space: nowrap;
       margin-left: 8px;
       font-size: 16px;
+      padding: 0;
     }
 
     .totals {
       border-top: 1px solid #000;
-      padding-top: 8px;
+      padding: 8px 4px 0 4px;
       margin-top: 12px;
     }
 
@@ -350,7 +352,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
     .balance-due {
       border-top: 2px solid #000;
       border-bottom: 2px solid #000;
-      padding: 8px 0;
+      padding: 8px 4px;
       margin: 12px 0;
       font-size: 16px;
       font-weight: bold;
@@ -372,13 +374,22 @@ function generateThermalHTML(data: ThermalPrintData): string {
     .bill-to-header {
       font-weight: bold;
       font-size: 14px;
-      margin-bottom: 4px;
+      margin-bottom: 0px;
     }
 
     .bill-to-name {
       font-size: 16px;
       font-weight: bold;
       line-height: 1.2;
+      padding: 0 2px;
+    }
+    
+    .bill-to-details {
+      padding: 0 2px;
+    }
+
+    .invoice-details{
+      padding: 0 2px;
     }
 
     .footer-message {
@@ -431,29 +442,28 @@ function generateThermalHTML(data: ThermalPrintData): string {
       <div class="bill-to-header">BILL TO:</div>
       <div class="bill-to-name">${data.customer.name}</div>
       ${data.customer.companyName ? `<div class="bill-to-name">${data.customer.companyName}</div>` : ''}
-      ${data.customer.address ? `<div class="small">${data.customer.address}</div>` : ''}
-      ${data.customer.city ? `<div class="small">${data.customer.city}</div>` : ''}
-      ${data.customer.postalCode ? `<div class="small">${data.customer.postalCode}</div>` : ''}
-      ${data.customer.vatNumber ? `<div class="small">VAT NO. ${data.customer.vatNumber}</div>` : ''}
+      ${data.customer.address ? `<div class="small bill-to-details">${data.customer.address}</div>` : ''}
+      ${data.customer.city ? `<div class="small bill-to-details">${data.customer.city}</div>` : ''}
+      ${data.customer.postalCode ? `<div class="small bill-to-details">${data.customer.postalCode}</div>` : ''}
+      ${data.customer.vatNumber ? `<div class="small bill-to-details">VAT NO. ${data.customer.vatNumber}</div>` : ''}
     </div>
-
     <!-- Invoice Details -->
-    <div class="section">
+    <div class="section ">
       <div class="row">
-        <span class="row-label">Invoice No:</span>
-        <span>${data.invoiceNo}</span>
+        <span class="row-label invoice-details">Invoice No:</span>
+        <span class="invoice-details">${data.invoiceNo}</span>
       </div>
       <div class="row">
-        <span class="row-label">Date:</span>
-        <span>${data.date}</span>
+        <span class="row-label invoice-details">Date:</span>
+        <span class="invoice-details">${data.date}</span>
       </div>
       <div class="row">
-        <span class="row-label">Due Date:</span>
-        <span>${data.dueDate}</span>
+        <span class="row-label invoice-details">Due Date:</span>
+        <span class="invoice-details">${data.dueDate}</span>
       </div>
       <div class="row">
-        <span class="row-label">Terms:</span>
-        <span>${data.terms}</span>
+        <span class="row-label invoice-details">Terms:</span>
+        <span class="invoice-details">${data.terms}</span>
       </div>
     </div>
 
