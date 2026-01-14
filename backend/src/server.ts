@@ -414,14 +414,39 @@ app.get("/items", async (req, res) => {
     }
 
     try {
-        const data = await queryApi(
-            "SELECT * FROM Item MAXRESULTS 1000",
-            req.session.realmId,
-            req.session.accessToken
-        )
+        const allItems: any[] = []
+        const batchSize = 1000
+        let startPosition = 1
+        let hasMore = true
 
+        // Fetch items in batches of 1000 until we get all of them
+        while (hasMore) {
+            const data = await queryApi(
+                `SELECT * FROM Item STARTPOSITION ${startPosition} MAXRESULTS ${batchSize}`,
+                req.session.realmId,
+                req.session.accessToken
+            ) as any
 
-        res.json(data)
+            const items = data.QueryResponse?.Item || []
+            allItems.push(...items)
+
+            console.log(`📦 Fetched items ${startPosition}-${startPosition + items.length - 1} (batch: ${items.length}, total: ${allItems.length})`)
+
+            // If we got fewer than batchSize, we've reached the end
+            if (items.length < batchSize) {
+                hasMore = false
+            } else {
+                startPosition += batchSize
+            }
+        }
+
+        // Return in the same format as a single query would
+        res.json({
+            QueryResponse: {
+                Item: allItems,
+                maxResults: allItems.length
+            }
+        })
     } catch (error) {
         console.error("Error fetching items:", error)
         res.status(500).json({error: "Failed to fetch items from QuickBooks"})
@@ -614,27 +639,33 @@ app.patch("/invoices/:id/payment", async (req, res) => {
             return res.status(404).json({ error: "Invoice not found" })
         }
 
+        // For marking as paid: create a Payment linked to the invoice
+        // For marking as unpaid: void/delete the payment (more complex - would need to track payment ID)
+        if (!markAsPaid) {
+            return res.status(400).json({
+                error: "Unpaying an invoice requires voiding the payment. This is not yet implemented."
+            })
+        }
+
+        // Create a Payment object to mark invoice as paid
         const paymentBody = {
-            TotalAmt: invoice.QueryResponse!.Invoice!.Balance,
-            CustomerRef: invoice.QueryResponse!.Invoice!.CustomerRef,
-            LinkedTxn: [
+            TotalAmt: invoice.Balance,
+            CustomerRef: invoice.CustomerRef,
+            Line: [
                 {
-                    TxnId: invoice.QueryResponse!.Invoice!.Id,
-                    TxnType: "Invoice"
+                    Amount: invoice.Balance,
+                    LinkedTxn: [
+                        {
+                            TxnId: invoice.Id,
+                            TxnType: "Invoice"
+                        }
+                    ]
                 }
             ]
         }
-        // Create a payment object
 
-        // if (markAsPaid) {
-        //     updatePayload.Balance = 0
-        // } else {
-        //     // Mark as unpaid: restore Balance to TotalAmt
-        //     updatePayload.Balance = invoice.TotalAmt
-        // }
-
-        // Perform sparse update
-        const url = `${QBO_BASE_URL}/${req.session.realmId}/payments`
+        // Create payment
+        const url = `${QBO_BASE_URL}/${req.session.realmId}/payment`
         const response = await fetch(url, {
             method: 'POST',
             headers: {
