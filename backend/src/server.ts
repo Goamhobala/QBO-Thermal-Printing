@@ -415,10 +415,12 @@ app.get("/items", async (req, res) => {
 
     try {
         const data = await queryApi(
-            "SELECT * FROM Item",
+            "SELECT * FROM Item WHERE Active IN (true, false)",
             req.session.realmId,
             req.session.accessToken
         )
+
+
         res.json(data)
     } catch (error) {
         console.error("Error fetching items:", error)
@@ -577,6 +579,83 @@ app.post("/invoices", async (req, res) => {
         console.error("Error creating invoice:", error)
         res.status(500).json({
             error: error instanceof Error ? error.message : "Failed to create invoice in QuickBooks"
+        })
+    }
+})
+
+/**
+ * PATCH /invoices/:id/payment
+ * Toggle invoice payment status using QuickBooks sparse update
+ * Sets Balance to 0 to mark as paid, or restores TotalAmt to mark as unpaid
+ */
+app.patch("/invoices/:id/payment", async (req, res) => {
+    if (!req.session.accessToken || !req.session.realmId) {
+        return res.status(401).json({ error: "Not authenticated. Please login first." })
+    }
+
+    const { id } = req.params
+    const { markAsPaid } = req.body
+
+    if (typeof markAsPaid !== 'boolean') {
+        return res.status(400).json({ error: "markAsPaid boolean is required" })
+    }
+
+    try {
+        // First, fetch the current invoice to get SyncToken and current values
+        const queryData = await queryApi(
+            `SELECT * FROM Invoice WHERE Id = '${id}'`,
+            req.session.realmId,
+            req.session.accessToken
+        ) as any
+
+        const invoice = queryData.QueryResponse?.Invoice?.[0]
+
+        if (!invoice) {
+            return res.status(404).json({ error: "Invoice not found" })
+        }
+
+        // Prepare sparse update payload
+        // QuickBooks requires Id, SyncToken, and the fields to update
+        const updatePayload: any = {
+            Id: invoice.Id,
+            SyncToken: invoice.SyncToken,
+            sparse: true
+        }
+
+        if (markAsPaid) {
+            // Mark as paid: set Balance to 0
+            // Note: In a real scenario, you'd create a Payment object
+            // For simplicity, we're using sparse update to set balance directly
+            updatePayload.Balance = 0
+        } else {
+            // Mark as unpaid: restore Balance to TotalAmt
+            updatePayload.Balance = invoice.TotalAmt
+        }
+
+        // Perform sparse update
+        const url = `${QBO_BASE_URL}/${req.session.realmId}/invoice`
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${req.session.accessToken}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updatePayload)
+        })
+
+        if (!response.ok) {
+            const errorText = await response.text()
+            throw new Error(`QuickBooks API error: ${response.status} ${response.statusText} - ${errorText}`)
+        }
+
+        const data = await response.json()
+        console.log('Invoice payment status updated:', JSON.stringify(data, null, 2))
+        res.json(data)
+    } catch (error) {
+        console.error("Error updating invoice payment status:", error)
+        res.status(500).json({
+            error: error instanceof Error ? error.message : "Failed to update invoice payment status"
         })
     }
 })
