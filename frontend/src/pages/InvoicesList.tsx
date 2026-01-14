@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Filter, ChevronDown, Printer, Edit, DollarSign, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { useInvoice, useCustomer, useTaxRate, useTaxCode } from '../contexts'
@@ -34,6 +34,7 @@ export default function InvoicesList() {
   const [showFilters, setShowFilters] = useState(false)
   const [sortField, setSortField] = useState<SortField>('date')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [updatingPayment, setUpdatingPayment] = useState<string | null>(null)
 
   // Fetch data on mount
   useEffect(() => {
@@ -172,6 +173,36 @@ export default function InvoicesList() {
       default: return 'text-gray-700 bg-gray-50 border-gray-200'
     }
   }
+
+  // Toggle payment status for an invoice
+  const handlePaymentToggle = useCallback(async (invoiceId: string, currentStatus: string) => {
+    const isPaid = currentStatus === 'paid'
+    setUpdatingPayment(invoiceId)
+
+    try {
+      const response = await fetch(`/invoices/${invoiceId}/payment`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ markAsPaid: !isPaid }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to update payment status')
+      }
+
+      // Refresh the invoices list to reflect the change
+      await fetchData()
+    } catch (error) {
+      console.error('Error toggling payment status:', error)
+      alert(error instanceof Error ? error.message : 'Failed to update payment status')
+    } finally {
+      setUpdatingPayment(null)
+    }
+  }, [fetchData])
 
 
   // Show loading state
@@ -452,12 +483,25 @@ export default function InvoicesList() {
                             <span className="text-xs">Edit</span>
                           </button>
                           <button
-                            onClick={() => console.log('Receive payment:', invoice.DocNumber)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded transition-colors"
-                            title="Receive Payment"
+                            onClick={() => handlePaymentToggle(invoice.Id, status)}
+                            disabled={updatingPayment === invoice.Id}
+                            className={cn(
+                              "inline-flex items-center gap-1 px-3 py-1.5 rounded transition-colors",
+                              status === 'paid'
+                                ? "text-orange-600 hover:text-orange-800 hover:bg-orange-50"
+                                : "text-purple-600 hover:text-purple-800 hover:bg-purple-50",
+                              updatingPayment === invoice.Id && "opacity-50 cursor-not-allowed"
+                            )}
+                            title={status === 'paid' ? "Mark as Unpaid" : "Mark as Paid"}
                           >
                             <DollarSign className="h-4 w-4" />
-                            <span className="text-xs">Payment</span>
+                            <span className="text-xs">
+                              {updatingPayment === invoice.Id
+                                ? 'Updating...'
+                                : status === 'paid'
+                                  ? 'Unpay'
+                                  : 'Pay'}
+                            </span>
                           </button>
                         </div>
                       </td>

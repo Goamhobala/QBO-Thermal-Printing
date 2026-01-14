@@ -397,7 +397,7 @@ app.get("/customers", async (req, res) => {
 
     try {
         const data = await queryApi(
-            "SELECT * FROM Customer",
+            "SELECT * FROM Customer MAXRESULTS 10000",
             req.session.realmId,
             req.session.accessToken
         )
@@ -415,7 +415,7 @@ app.get("/items", async (req, res) => {
 
     try {
         const data = await queryApi(
-            "SELECT * FROM Item WHERE Active IN (true, false)",
+            "SELECT * FROM Item MAXRESULTS 1000",
             req.session.realmId,
             req.session.accessToken
         )
