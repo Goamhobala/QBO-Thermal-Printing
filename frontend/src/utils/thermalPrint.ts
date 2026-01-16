@@ -64,6 +64,7 @@ interface ThermalPrintData {
   items: Array<{
     description: string
     amount: number
+    quantity: number
   }>
   subtotal: number
   vat: number
@@ -80,7 +81,8 @@ function convertQBOInvoiceToThermalData(invoice: QBOInvoice, customer: Customer 
     .filter(line => line.DetailType === 'SalesItemLineDetail' && line.SalesItemLineDetail)
     .map(line => ({
       description: line.Description || line.SalesItemLineDetail?.ItemRef.name || '',
-      amount: line.Amount
+      amount: line.Amount || 0,
+      quantity: line.SalesItemLineDetail?.Qty || 0
     }))
 
   // Calculate subtotal (total - tax)
@@ -478,7 +480,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
       <div class="item">
         <div class="item-row">
           <div class="item-desc">
-            ${item.description.replace(/\n/g, '<br>')}
+            ${item.description.replace(/\n/g, '<br>')} x ${item.quantity}
           </div>
           <div class="item-amount">R${item.amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</div>
         </div>
