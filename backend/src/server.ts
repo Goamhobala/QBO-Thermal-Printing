@@ -362,6 +362,28 @@ const createEntity = async (entityType: string, entityData: any, realmId: string
 
     return response.json()
 }
+
+const updateEntity = async (entityType: string, entityData: any, realmId: string, accessToken: string) => {
+    // QuickBooks uses POST with sparse update for modifications
+    const url = `${QBO_BASE_URL}/${realmId}/${entityType}?operation=update`
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(entityData)
+    })
+
+    if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`QuickBooks API error: ${response.status} ${response.statusText} - ${errorText}`)
+    }
+
+    return response.json()
+}
 /**
  * GET /auth/status
  * Check if user is authenticated
@@ -602,6 +624,67 @@ app.get("/invoices/:id", async (req, res) => {
     } catch (error) {
         console.error("Error fetching invoice:", error)
         res.status(500).json({ error: "Failed to fetch invoice from QuickBooks" })
+    }
+})
+
+/**
+ * PUT /invoices/:id
+ * Update an existing invoice in QuickBooks
+ */
+app.put("/invoices/:id", async (req, res) => {
+    if (!req.session.accessToken || !req.session.realmId) {
+        return res.status(401).json({ error: "Not authenticated. Please login first." })
+    }
+
+    const { id } = req.params
+
+    try {
+        // First, fetch the current invoice to get SyncToken (required for updates)
+        const queryData = await queryApi(
+            `SELECT * FROM Invoice WHERE Id = '${id}'`,
+            req.session.realmId,
+            req.session.accessToken
+        ) as any
+
+        const existingInvoice = queryData.QueryResponse?.Invoice?.[0]
+
+        if (!existingInvoice) {
+            return res.status(404).json({ error: "Invoice not found" })
+        }
+
+        const invoiceData = req.body
+        console.log('Received invoice update data:', JSON.stringify(invoiceData, null, 2))
+
+        // Validate required fields
+        if (!invoiceData.CustomerRef || !invoiceData.Line || invoiceData.Line.length === 0) {
+            return res.status(400).json({
+                error: "Invalid invoice data. CustomerRef and at least one Line item are required."
+            })
+        }
+
+        // Add required fields for update: Id and SyncToken
+        const updatePayload = {
+            ...invoiceData,
+            Id: id,
+            SyncToken: existingInvoice.SyncToken,
+            sparse: true // Sparse update - only update provided fields
+        }
+
+        console.log('Sending update to QuickBooks API...')
+        const data = await updateEntity(
+            "invoice",
+            updatePayload,
+            req.session.realmId,
+            req.session.accessToken
+        )
+
+        console.log('QuickBooks update response:', JSON.stringify(data, null, 2))
+        res.json(data)
+    } catch (error) {
+        console.error("Error updating invoice:", error)
+        res.status(500).json({
+            error: error instanceof Error ? error.message : "Failed to update invoice in QuickBooks"
+        })
     }
 })
 

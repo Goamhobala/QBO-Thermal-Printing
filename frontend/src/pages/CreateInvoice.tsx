@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { LineItem, InvoiceFormData, Customer } from '../types'
 import { useCustomer, useItem, useTaxCode, useTaxRate, useTerm, useInvoice } from '../contexts'
 import { useCreateInvoice } from '../hooks/useCreateInvoice'
+import { useUpdateInvoice } from '../hooks/useUpdateInvoice'
 import Input from '../components/Input'
 import Select from '../components/Select'
 import Button from '../components/Button'
@@ -68,6 +69,7 @@ const CreateInvoice = () => {
   const { data: terms, loading: termsLoading, error: termsError, fetchData: fetchTerms } = useTerm()
   const { data: invoices } = useInvoice()
   const { createInvoice, loading: createLoading, error: createError } = useCreateInvoice()
+  const { updateInvoice, loading: updateLoading, error: updateError } = useUpdateInvoice()
 
   // Filter to only show active, non-hidden tax codes
   const availableTaxCodes = useMemo(() => {
@@ -448,9 +450,15 @@ const CreateInvoice = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (isEditMode) {
-      // TODO: Implement update logic later
-      console.log('Update invoice:', formData)
+    if (isEditMode && id) {
+      // Update existing invoice
+      const result = await updateInvoice(id, formData)
+
+      if (result) {
+        // Success! Open thermal print and navigate back to invoice list
+        openThermalPrintFromForm(formData, formData.customer)
+        navigate('/home')
+      }
       return
     }
 
@@ -505,6 +513,12 @@ const CreateInvoice = () => {
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
           <p className="font-medium">Error creating invoice</p>
           <p className="text-sm">{createError}</p>
+        </div>
+      )}
+      {updateError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+          <p className="font-medium">Error updating invoice</p>
+          <p className="text-sm">{updateError}</p>
         </div>
       )}
 
@@ -862,9 +876,9 @@ const CreateInvoice = () => {
                 type="submit"
                 className="w-full"
                 size="lg"
-                disabled={createLoading || customersLoading || itemsLoading || taxCodesLoading || termsLoading}
+                disabled={createLoading || updateLoading || customersLoading || itemsLoading || taxCodesLoading || termsLoading}
               >
-                {createLoading ? 'Creating Invoice...' : isEditMode ? 'Update Invoice' : 'Create Invoice'}
+                {createLoading ? 'Creating Invoice...' : updateLoading ? 'Updating Invoice...' : isEditMode ? 'Update Invoice' : 'Create Invoice'}
               </Button>
             </div>
           </div>
