@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Check, ChevronsUpDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,8 @@ interface ComboboxItem {
   Id: string
   Name: string
   Sku?: string
+  Type?: string
+  FullyQualifiedName?: string
 }
 
 interface ItemComboboxProps<T extends ComboboxItem> {
@@ -41,6 +43,44 @@ export function ItemCombobox<T extends ComboboxItem>({ items, value, onValueChan
     return undefined
   }
 
+  // Group items by category
+  const groupedItems = useMemo(() => {
+    const categories = items.filter(item => item.Type === 'Category')
+    const selectableItems = items.filter(item => item.Type !== 'Category')
+
+    // Build a map of category names to their items
+    const groups: { category: string; items: T[] }[] = []
+    const uncategorized: T[] = []
+
+    // Create a set of category names for quick lookup
+    const categoryNames = new Set(categories.map(c => c.Name))
+
+    selectableItems.forEach(item => {
+      // Check if the item has a parent category via FullyQualifiedName
+      // Format is typically "Category:ItemName" or just "ItemName"
+      const fqn = item.FullyQualifiedName || item.Name
+      const parts = fqn.split(':')
+
+      if (parts.length > 1 && categoryNames.has(parts[0])) {
+        // This item belongs to a category
+        const categoryName = parts[0]
+        let group = groups.find(g => g.category === categoryName)
+        if (!group) {
+          group = { category: categoryName, items: [] }
+          groups.push(group)
+        }
+        group.items.push(item)
+      } else {
+        uncategorized.push(item)
+      }
+    })
+
+    // Sort groups alphabetically
+    groups.sort((a, b) => a.category.localeCompare(b.category))
+
+    return { groups, uncategorized }
+  }, [items])
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -60,35 +100,70 @@ export function ItemCombobox<T extends ComboboxItem>({ items, value, onValueChan
           <CommandInput placeholder="Search items..." className="bg-white" />
           <CommandList className="bg-white">
             <CommandEmpty className="bg-white">No item found.</CommandEmpty>
-            <CommandGroup className="bg-white">
-              {items.map((item) => {
-                const secondary = getSecondaryText(item)
-                return (
-                  <CommandItem
-                    key={item.Id}
-                    value={item.Name}
-                    onSelect={() => {
-                      onValueChange(item.Id)
-                      setOpen(false)
-                    }}
-                    className="bg-white hover:bg-gray-100"
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4 shrink-0",
-                        value === item.Id ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    <div className="flex items-center justify-between flex-1 min-w-0">
-                      <span className="truncate">{item.Name}</span>
-                      {secondary && (
-                        <span className="text-xs text-gray-500 ml-2 shrink-0">{secondary}</span>
-                      )}
-                    </div>
-                  </CommandItem>
-                )
-              })}
-            </CommandGroup>
+            {/* Uncategorized items first */}
+            {groupedItems.uncategorized.length > 0 && (
+              <CommandGroup className="bg-white">
+                {groupedItems.uncategorized.map((item) => {
+                  const secondary = getSecondaryText(item)
+                  return (
+                    <CommandItem
+                      key={item.Id}
+                      value={item.Name}
+                      onSelect={() => {
+                        onValueChange(item.Id)
+                        setOpen(false)
+                      }}
+                      className="bg-white hover:bg-gray-100"
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4 shrink-0",
+                          value === item.Id ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      <div className="flex items-center justify-between flex-1 min-w-0">
+                        <span className="truncate">{item.Name}</span>
+                        {secondary && (
+                          <span className="text-xs text-gray-500 ml-2 shrink-0">{secondary}</span>
+                        )}
+                      </div>
+                    </CommandItem>
+                  )
+                })}
+              </CommandGroup>
+            )}
+            {/* Categorized items with headers */}
+            {groupedItems.groups.map((group) => (
+              <CommandGroup key={group.category} heading={group.category} className="bg-white">
+                {group.items.map((item) => {
+                  const secondary = getSecondaryText(item)
+                  return (
+                    <CommandItem
+                      key={item.Id}
+                      value={item.Name}
+                      onSelect={() => {
+                        onValueChange(item.Id)
+                        setOpen(false)
+                      }}
+                      className="bg-white hover:bg-gray-100"
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4 shrink-0",
+                          value === item.Id ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      <div className="flex items-center justify-between flex-1 min-w-0">
+                        <span className="truncate">{item.Name}</span>
+                        {secondary && (
+                          <span className="text-xs text-gray-500 ml-2 shrink-0">{secondary}</span>
+                        )}
+                      </div>
+                    </CommandItem>
+                  )
+                })}
+              </CommandGroup>
+            ))}
           </CommandList>
         </Command>
       </PopoverContent>
