@@ -268,8 +268,8 @@ function generateThermalHTML(data: ThermalPrintData): string {
     }
 
     .section {
-      margin: 12px 0;
-      padding: 8px 2px;
+      margin: 4px 0 0;
+      padding: 8px 2px 4px;
       border-top: 1px dashed #000;
     }
 
