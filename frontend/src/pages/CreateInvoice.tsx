@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { LineItem, InvoiceFormData } from '../types'
+import { LineItem, InvoiceFormData, Customer } from '../types'
 import { useCustomer, useItem, useTaxCode, useTaxRate, useTerm, useInvoice } from '../contexts'
 import { useCreateInvoice } from '../hooks/useCreateInvoice'
 import Input from '../components/Input'
@@ -11,6 +11,50 @@ import { ItemCombobox } from '../components/ItemCombobox'
 import { CustomerCombobox } from '../components/CustomerCombobox'
 import { openThermalPrintFromForm, setTaxRateLookup, setTaxCodeLookup } from '../utils/thermalPrint'
 
+
+// Helper function to format customer billing address
+const formatBillTo = (customer: Customer | null): string => {
+  if (!customer) return ''
+
+  const lines: string[] = []
+
+  // Add display name first
+  lines.push(customer.DisplayName)
+
+  // Add company name if different from display name
+  if (customer.CompanyName && customer.CompanyName !== customer.DisplayName) {
+    lines.push(customer.CompanyName)
+  }
+
+  // Add billing address if available
+  if (customer.BillAddr) {
+    if (customer.BillAddr.Line1) lines.push(customer.BillAddr.Line1)
+    if (customer.BillAddr.Line2) lines.push(customer.BillAddr.Line2)
+    if (customer.BillAddr.Line3) lines.push(customer.BillAddr.Line3)
+
+    // City, State/Province, Postal Code
+    const cityLine = [
+      customer.BillAddr.City,
+      customer.BillAddr.CountrySubDivisionCode,
+      customer.BillAddr.PostalCode
+    ].filter(Boolean).join(', ')
+    if (cityLine) lines.push(cityLine)
+
+    if (customer.BillAddr.Country) lines.push(customer.BillAddr.Country)
+  }
+
+  // Add phone if available
+  if (customer.PrimaryPhone?.FreeFormNumber) {
+    lines.push(`Tel: ${customer.PrimaryPhone.FreeFormNumber}`)
+  }
+
+  // Add email if available
+  if (customer.PrimaryEmailAddr?.Address) {
+    lines.push(customer.PrimaryEmailAddr.Address)
+  }
+
+  return lines.join('\n')
+}
 
 const CreateInvoice = () => {
   const { id } = useParams()
@@ -52,6 +96,7 @@ const CreateInvoice = () => {
 
   const [formData, setFormData] = useState<InvoiceFormData>({
     customer: null,
+    billTo: '',
     invoiceNo: "",
     terms: '',
     invoiceDate: new Date().toISOString().split('T')[0],
@@ -223,6 +268,7 @@ const CreateInvoice = () => {
 
     setFormData({
       customer,
+      billTo: formatBillTo(customer),
       invoiceNo: invoice.DocNumber || '',
       terms: termsName,
       invoiceDate: invoice.TxnDate || new Date().toISOString().split('T')[0],
@@ -476,7 +522,11 @@ const CreateInvoice = () => {
                   onValueChange={(customerId) => {
                     const selectedCustomer = customers.find(c => c.Id === customerId)
                     if (selectedCustomer) {
-                      setFormData(prev => ({ ...prev, customer: selectedCustomer }))
+                      setFormData(prev => ({
+                        ...prev,
+                        customer: selectedCustomer,
+                        billTo: formatBillTo(selectedCustomer)
+                      }))
                     }
                   }}
                   onCustomerCreated={refetchCustomers}
@@ -484,6 +534,14 @@ const CreateInvoice = () => {
                 />
               </div>
               {customersLoading && <p className="text-sm text-gray-500">Loading customers...</p>}
+
+              <Textarea
+                label="Bill To"
+                value={formData.billTo}
+                onChange={(e) => setFormData(prev => ({ ...prev, billTo: e.target.value }))}
+                rows={5}
+                placeholder="Customer billing address"
+              />
             </div>
 
             {/* Right Column */}
@@ -661,8 +719,8 @@ const CreateInvoice = () => {
                     <td className="px-4 py-3">
                       <input
                         type="number"
-                        value={item.quantity}
-                        onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                        value={item.quantity || ''}
+                        onChange={(e) => updateLineItem(item.id, 'quantity', e.target.value === '' ? 0 : parseFloat(e.target.value))}
                         className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                         min="0"
                         step="1"
@@ -671,8 +729,8 @@ const CreateInvoice = () => {
                     <td className="px-4 py-3">
                       <input
                         type="number"
-                        value={item.rate}
-                        onChange={(e) => updateLineItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
+                        value={item.rate || ''}
+                        onChange={(e) => updateLineItem(item.id, 'rate', e.target.value === '' ? 0 : parseFloat(e.target.value))}
                         className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                         min="0"
                         step="0.01"

@@ -53,14 +53,8 @@ interface ThermalPrintData {
   date: string
   dueDate: string
   terms: string
-  customer: {
-    name: string
-    companyName?: string
-    address?: string
-    city?: string
-    postalCode?: string
-    vatNumber?: string
-  }
+  billTo: string // Full bill-to text, one line per newline
+  customerVatNumber?: string // Separate VAT number field
   items: Array<{
     description: string
     amount: number
@@ -104,20 +98,55 @@ function convertQBOInvoiceToThermalData(invoice: QBOInvoice, customer: Customer 
   const termsField = invoice.CustomField?.find(f => f.Name.toLowerCase().includes('term'))
   const terms = termsField?.StringValue || 'Net 30'
 
-  // Build address from BillAddr
-  const billAddr = invoice.BillAddr
-  const addressParts = []
-  if (billAddr?.Line1) addressParts.push(billAddr.Line1)
-  if (billAddr?.Line2) addressParts.push(billAddr.Line2)
-  if (billAddr?.Line3) addressParts.push(billAddr.Line3)
-  const address = addressParts.join(', ')
+  // Build billTo string from customer and invoice data
+  const billToLines: string[] = []
+
+  // Add customer name
+  billToLines.push(invoice.CustomerRef.name)
+
+  // Add company name if different from display name
+  if (customer?.CompanyName && customer.CompanyName !== invoice.CustomerRef.name) {
+    billToLines.push(customer.CompanyName)
+  }
+
+  // Add billing address from invoice or customer
+  const invoiceBillAddr = invoice.BillAddr
+  const customerBillAddr = customer?.BillAddr
+
+  if (invoiceBillAddr || customerBillAddr) {
+    const addr = invoiceBillAddr || customerBillAddr
+    if (addr?.Line1) billToLines.push(addr.Line1)
+    if (addr?.Line2) billToLines.push(addr.Line2)
+    if (addr?.Line3) billToLines.push(addr.Line3)
+
+    // City, State/Province, Postal Code
+    const cityLine = [
+      addr?.City,
+      addr?.CountrySubDivisionCode,
+      addr?.PostalCode
+    ].filter(Boolean).join(', ')
+    if (cityLine) billToLines.push(cityLine)
+
+    // Country is only available on customer BillAddr
+    if (customerBillAddr?.Country) billToLines.push(customerBillAddr.Country)
+  }
+
+  // Add phone if available
+  if (customer?.PrimaryPhone?.FreeFormNumber) {
+    billToLines.push(`Tel: ${customer.PrimaryPhone.FreeFormNumber}`)
+  }
+
+  // Add email if available
+  if (customer?.PrimaryEmailAddr?.Address) {
+    billToLines.push(customer.PrimaryEmailAddr.Address)
+  }
 
   // Extract VAT number from customer's PrimaryTaxIdentifier
-  let vatNumber: string | undefined = undefined
+  let customerVatNumber: string | undefined = undefined
   if (customer?.PrimaryTaxIdentifier) {
     const numbers = customer.PrimaryTaxIdentifier.match(/\d+/g)
     if (numbers && numbers.length > 0) {
-      vatNumber = numbers.join('')
+      customerVatNumber = numbers.join('')
     }
   }
 
@@ -126,14 +155,8 @@ function convertQBOInvoiceToThermalData(invoice: QBOInvoice, customer: Customer 
     date: formatDate(invoice.TxnDate),
     dueDate: formatDate(invoice.DueDate),
     terms,
-    customer: {
-      name: invoice.CustomerRef.name,
-      companyName: customer?.CompanyName,
-      address: address || undefined,
-      city: billAddr?.City,
-      postalCode: billAddr?.PostalCode,
-      vatNumber
-    },
+    billTo: billToLines.join('\n'),
+    customerVatNumber,
     items,
     subtotal,
     vat,
@@ -167,23 +190,15 @@ function convertFormDataToThermalData(
     vatRate = (vat / subtotal) * 100
   }
 
-  // Build address from customer BillAddr
-  const billAddr = customer?.BillAddr
-  const addressParts = []
-  if (billAddr?.Line1) addressParts.push(billAddr.Line1)
-  if (billAddr?.Line2) addressParts.push(billAddr.Line2)
-  if (billAddr?.Line3) addressParts.push(billAddr.Line3)
-  const address = addressParts.join(', ')
-
   // Extract VAT number from PrimaryTaxIdentifier
   // Format can be "VATNO 4660281926" or "XXX4660281926" (privacy blurred)
   // We just extract the numeric portion which is never blurred
-  let vatNumber: string | undefined = undefined
+  let customerVatNumber: string | undefined = undefined
   if (customer?.PrimaryTaxIdentifier) {
     const numbers = customer.PrimaryTaxIdentifier.match(/\d+/g)
     if (numbers && numbers.length > 0) {
       // Join all number sequences (in case there are multiple)
-      vatNumber = numbers.join('')
+      customerVatNumber = numbers.join('')
     }
   }
 
@@ -192,14 +207,8 @@ function convertFormDataToThermalData(
     date: formatDate(formData.invoiceDate),
     dueDate: formatDate(formData.dueDate),
     terms: formData.terms,
-    customer: {
-      name: customer?.DisplayName || 'Unknown Customer',
-      companyName: customer?.CompanyName,
-      address: address || undefined,
-      city: billAddr?.City,
-      postalCode: billAddr?.PostalCode,
-      vatNumber
-    },
+    billTo: formData.billTo || customer?.DisplayName || 'Unknown Customer',
+    customerVatNumber,
     items,
     subtotal,
     vat,
@@ -444,12 +453,12 @@ function generateThermalHTML(data: ThermalPrintData): string {
     <!-- Bill To -->
     <div class="section">
       <div class="bill-to-header">BILL TO:</div>
-      <div class="bill-to-name">${data.customer.name}</div>
-      ${data.customer.companyName ? `<div class="bill-to-name">${data.customer.companyName}</div>` : ''}
-      ${data.customer.address ? `<div class="small bill-to-details">${data.customer.address}</div>` : ''}
-      ${data.customer.city ? `<div class="small bill-to-details">${data.customer.city}</div>` : ''}
-      ${data.customer.postalCode ? `<div class="small bill-to-details">${data.customer.postalCode}</div>` : ''}
-      ${data.customer.vatNumber ? `<div class="small bill-to-details">VAT NO. ${data.customer.vatNumber}</div>` : ''}
+      ${data.billTo.split('\n').map((line, index) =>
+        index === 0
+          ? `<div class="bill-to-name">${line}</div>`
+          : `<div class="small bill-to-details">${line}</div>`
+      ).join('\n      ')}
+      ${data.customerVatNumber ? `<div class="small bill-to-details">VAT NO. ${data.customerVatNumber}</div>` : ''}
     </div>
     <!-- Invoice Details -->
     <div class="section ">

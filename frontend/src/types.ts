@@ -298,6 +298,7 @@ export interface Term {
 
 export interface InvoiceFormData {
   customer: Customer | null
+  billTo: string
   invoiceNo: string
   terms: string
   invoiceDate: string
