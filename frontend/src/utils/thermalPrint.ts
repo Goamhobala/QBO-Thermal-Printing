@@ -482,7 +482,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
       <div class="item">
         <div class="item-row">
           <div class="item-desc">
-            ${item.description.replace(/\n/g, '<br>')} x ${item.quantity}
+            ${item.quantity} x ${item.description.replace(/\n/g, '<br>')}
           </div>
           <div class="item-amount">R${item.amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</div>
         </div>
