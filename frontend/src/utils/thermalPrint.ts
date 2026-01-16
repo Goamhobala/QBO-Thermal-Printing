@@ -149,7 +149,8 @@ function convertFormDataToThermalData(
 ): ThermalPrintData {
   const items = formData.lineItems.map(item => ({
     description: `${item.productName}${item.description ? '\n' + item.description : ''}`,
-    amount: item.amount + item.vatAmount
+    amount: item.amount + item.vatAmount,
+    quantity: item.quantity
   }))
 
   const subtotal = formData.lineItems.reduce((sum, item) => sum + item.amount, 0)
