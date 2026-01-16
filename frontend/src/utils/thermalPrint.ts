@@ -217,20 +217,6 @@ function generateThermalHTML(data: ThermalPrintData): string {
   <title>Invoice #${data.invoiceNo} - Thermal Print</title>
   <style>
     @font-face {
-      font-family: 'Merchant Copy';
-      src: url('/fonts/Dot Matrix Fonts/Merchant Copy.ttf') format('truetype');
-      font-weight: normal;
-      font-style: normal;
-    }
-
-    @font-face {
-      font-family: 'Merchant Copy';
-      src: url('/fonts/Dot Matrix Fonts/Merchant Copy Wide.ttf') format('truetype');
-      font-weight: bold;
-      font-style: normal;
-    }
-
-    @font-face {
       font-family: 'Merchant Copy Doublesize';
       src: url('/fonts/Dot Matrix Fonts/Merchant Copy Doublesize.ttf') format('truetype');
       font-weight: normal;
@@ -244,7 +230,7 @@ function generateThermalHTML(data: ThermalPrintData): string {
     }
 
     body {
-      font-family: 'Merchant Copy';
+      font-family: 'Courier New';
       font-size: 16px;
       line-height: 1;
       color: #000;
@@ -324,18 +310,19 @@ function generateThermalHTML(data: ThermalPrintData): string {
 
     .item-desc {
       flex: 1;
-      font-size: 16px;
+      font-size: 14px;
       line-height: 1.2;
-      font-weight: normal;
       padding: 0;
+      font-weight: 600;
     }
 
     .item-amount {
       text-align: right;
       white-space: nowrap;
       margin-left: 8px;
-      font-size: 16px;
+      font-size: 14px;
       padding: 0;
+      font-weight: 600;
     }
 
     .totals {
@@ -389,10 +376,24 @@ function generateThermalHTML(data: ThermalPrintData): string {
     .bill-to-details {
       padding: 0 2px;
     }
+    
+    .section--tax-invoice{
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
 
+    .invoice-header{
+      padding: 0 2px;
+      font-weight: 500;
+      font-size: 16px;
+    }
+    
     .invoice-details{
       padding: 0 2px;
+      font-weight: 600;
+      font-size: 16px;
     }
+    
 
     .footer-message {
       font-size: 16px;
@@ -426,16 +427,16 @@ function generateThermalHTML(data: ThermalPrintData): string {
     <!-- Company Header -->
     <div class="center">
       <div class="company-name">TIMBER 4 U CC</div>
-      <div class="">14 Lekkerwater Road</div>
-      <div class="">Sunnydale, Noordhoek</div>
-      <div class="">Western Cape 7975 ZA</div>
-      <div class="">+10217855006</div>
-      <div class="">info@realkey.co.za</div>
-      <div class="">VAT No. 4910248089</div>
+      <div class="small">14 Lekkerwater Road</div>
+      <div class="small">Sunnydale, Noordhoek</div>
+      <div class="small">Western Cape 7975 ZA</div>
+      <div class="small">+10217855006</div>
+      <div class="small">info@realkey.co.za</div>
+      <div class="small">VAT No. 4910248089</div>
     </div>
 
     <!-- Invoice Type -->
-    <div class="section center">
+    <div class="section center  section--tax-invoice">
       <div class="large bold">TAX INVOICE</div>
     </div>
 
@@ -452,19 +453,19 @@ function generateThermalHTML(data: ThermalPrintData): string {
     <!-- Invoice Details -->
     <div class="section ">
       <div class="row">
-        <span class="row-label invoice-details">Invoice No:</span>
+        <span class="row-label invoice-header">Invoice No:</span>
         <span class="invoice-details">${data.invoiceNo}</span>
       </div>
       <div class="row">
-        <span class="row-label invoice-details">Date:</span>
+        <span class="row-label invoice-header">Date:</span>
         <span class="invoice-details">${data.date}</span>
       </div>
       <div class="row">
-        <span class="row-label invoice-details">Due Date:</span>
+        <span class="row-label invoice-header">Due Date:</span>
         <span class="invoice-details">${data.dueDate}</span>
       </div>
       <div class="row">
-        <span class="row-label invoice-details">Terms:</span>
+        <span class="row-label invoice-headers">Terms:</span>
         <span class="invoice-details">${data.terms}</span>
       </div>
     </div>
