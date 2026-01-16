@@ -567,7 +567,7 @@ app.get("/accounts", async (req, res)=>{
 
     try {
         const data = await queryApi(
-            "SELECT * FROM Account",
+            "SELECT * FROM Account MAXRESULTS 1000",
             req.session.realmId,
             req.session.accessToken
         )
