@@ -121,6 +121,9 @@ const CreateInvoice = () => {
   const [invoiceError, setInvoiceError] = useState<string | null>(null)
   const [fetchedInvoice, setFetchedInvoice] = useState<any>(null)
 
+  // Check if invoice is paid (Balance === 0 means fully paid)
+  const isPaid = isEditMode && fetchedInvoice?.Balance === 0
+
   useEffect(() => {
     fetchCustomers()
     fetchItems()
@@ -483,6 +486,12 @@ const CreateInvoice = () => {
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
           <p className="font-medium">Error loading invoice</p>
           <p className="text-sm">{invoiceError}</p>
+        </div>
+      )}
+      {isPaid && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded mb-6">
+          <p className="font-medium">This invoice has been paid</p>
+          <p className="text-sm">Paid invoices cannot be edited. To make changes or issue refunds, please use QuickBooks directly.</p>
         </div>
       )}
       {customersError && (
@@ -876,7 +885,7 @@ const CreateInvoice = () => {
                 type="submit"
                 className="w-full"
                 size="lg"
-                disabled={createLoading || updateLoading || customersLoading || itemsLoading || taxCodesLoading || termsLoading}
+                disabled={isPaid || createLoading || updateLoading || customersLoading || itemsLoading || taxCodesLoading || termsLoading}
               >
                 {createLoading ? 'Creating Invoice...' : updateLoading ? 'Updating Invoice...' : isEditMode ? 'Update Invoice' : 'Create Invoice'}
               </Button>
