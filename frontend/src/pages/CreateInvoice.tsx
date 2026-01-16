@@ -387,6 +387,17 @@ const CreateInvoice = () => {
               updated.sku = selectedItem.Sku || ''
               updated.description = selectedItem.Description || ''
               updated.rate = selectedItem.UnitPrice || 0
+
+              // Recalculate amount with new rate
+              updated.amount = item.quantity * updated.rate
+
+              // Recalculate VAT
+              if (item.taxRateId) {
+                const taxRateDecimal = getTaxRateFromCode(item.taxRateId)
+                updated.vatAmount = updated.amount * taxRateDecimal
+              } else {
+                updated.vatAmount = 0
+              }
             }
           }
 
