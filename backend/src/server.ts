@@ -538,6 +538,41 @@ app.get("/invoices", async (req, res)=>{
     }
 })
 
+app.get("/accounts", async (req, res)=>{
+    if (!req.session.accessToken || !req.session.realmId) {
+        return res.status(401).json({ error: "Not authenticated. Please login first." })
+    }
+
+    try {
+        const data = await queryApi(
+            "SELECT * FROM Account",
+            req.session.realmId,
+            req.session.accessToken
+        )
+        res.json(data)
+    } catch (error) {
+        console.error("Error fetching accounts:", error)
+        res.status(500).json({error: "Failed to fetch accounts from QuickBooks"})
+    }
+})
+
+app.get("/paymentmethods", async (req, res)=>{
+    if (!req.session.accessToken || !req.session.realmId) {
+        return res.status(401).json({ error: "Not authenticated. Please login first." })
+    }
+
+    try {
+        const data = await queryApi(
+            "SELECT * FROM PaymentMethod",
+            req.session.realmId,
+            req.session.accessToken
+        )
+        res.json(data)
+    } catch (error) {
+        console.error("Error fetching payment methods:", error)
+        res.status(500).json({error: "Failed to fetch payment methods from QuickBooks"})
+    }
+})
 /**
  * GET /invoices/:id
  * Fetch a single invoice by ID from QuickBooks
@@ -619,7 +654,7 @@ app.patch("/invoices/:id/payment", async (req, res) => {
     }
 
     const { id } = req.params
-    const { markAsPaid } = req.body
+    const { markAsPaid, paymentMethodId, depositToAccountId} = req.body
 
     if (typeof markAsPaid !== 'boolean') {
         return res.status(400).json({ error: "markAsPaid boolean is required" })
@@ -651,6 +686,8 @@ app.patch("/invoices/:id/payment", async (req, res) => {
         const paymentBody = {
             TotalAmt: invoice.Balance,
             CustomerRef: invoice.CustomerRef,
+            PaymentMethodRef: {value: paymentMethodId},
+            DepositToAccountRef: {value: depositToAccountId},
             Line: [
                 {
                     Amount: invoice.Balance,

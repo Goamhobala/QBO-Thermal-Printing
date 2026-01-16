@@ -311,3 +311,45 @@ export interface InvoiceFormData {
   memoOnStatement: string
 }
 
+export interface PaymentMethodType
+{
+  Id: string
+  Name: string
+  SyncToken: string
+  Active: boolean
+  Type:string
+
+}
+export interface AccountType {
+  Id: string
+  Name: string
+  SyncToken: string
+  AcctNum?: string
+  CurrencyRef?: {
+    value: string
+    name?: string
+  }
+  ParentRef?: {
+    value: string
+    name?: string
+  }
+  Description?: string
+  Active?: boolean
+  MetaData?: {
+    CreateTime: string
+    LastUpdatedTime: string
+  }
+  SubAccount?: boolean
+  Classification?: 'Asset' | 'Equity' | 'Expense' | 'Liability' | 'Revenue'
+  FullyQualifiedName?: string
+  TxnLocationType?: 'WithinFrance' | 'FranceOverseas' | 'OutsideFranceWithEU' | 'OutsideEU'
+  AccountType?: string
+  CurrentBalanceWithSubAccounts?: number
+  AccountAlias?: string
+  TaxCodeRef?: {
+    value: string
+    name?: string
+  }
+  AccountSubType?: string
+  CurrentBalance?: number
+}

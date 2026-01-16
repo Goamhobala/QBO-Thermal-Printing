@@ -15,19 +15,31 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Item } from "../types"
+interface ComboboxItem {
+  Id: string
+  Name: string
+  Sku?: string
+}
 
-interface ItemComboboxProps {
-  items: Item[]
+interface ItemComboboxProps<T extends ComboboxItem> {
+  items: T[]
   value?: string
   onValueChange: (value: string) => void
   disabled?: boolean
+  placeholder?: string
+  renderSecondary?: (item: T) => string | undefined
 }
 
-export function ItemCombobox({ items, value, onValueChange, disabled }: ItemComboboxProps) {
+export function ItemCombobox<T extends ComboboxItem>({ items, value, onValueChange, disabled, placeholder = "Select item...", renderSecondary }: ItemComboboxProps<T>) {
   const [open, setOpen] = useState(false)
 
   const selectedItem = items.find((item) => item.Id === value)
+
+  const getSecondaryText = (item: T): string | undefined => {
+    if (renderSecondary) return renderSecondary(item)
+    if (item.Sku) return `SKU: ${item.Sku}`
+    return undefined
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -39,7 +51,7 @@ export function ItemCombobox({ items, value, onValueChange, disabled }: ItemComb
           className="w-full justify-between"
           disabled={disabled}
         >
-          {selectedItem ? selectedItem.Name : "Select item..."}
+          {selectedItem ? selectedItem.Name : placeholder}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -49,30 +61,33 @@ export function ItemCombobox({ items, value, onValueChange, disabled }: ItemComb
           <CommandList className="bg-white">
             <CommandEmpty className="bg-white">No item found.</CommandEmpty>
             <CommandGroup className="bg-white">
-              {items.map((item) => (
-                <CommandItem
-                  key={item.Id}
-                  value={item.Name}
-                  onSelect={() => {
-                    onValueChange(item.Id)
-                    setOpen(false)
-                  }}
-                  className="bg-white hover:bg-gray-100"
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === item.Id ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  <div className="flex flex-col">
-                    <span>{item.Name}</span>
-                    {item.Sku && (
-                      <span className="text-xs text-gray-500">SKU: {item.Sku}</span>
-                    )}
-                  </div>
-                </CommandItem>
-              ))}
+              {items.map((item) => {
+                const secondary = getSecondaryText(item)
+                return (
+                  <CommandItem
+                    key={item.Id}
+                    value={item.Name}
+                    onSelect={() => {
+                      onValueChange(item.Id)
+                      setOpen(false)
+                    }}
+                    className="bg-white hover:bg-gray-100"
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4 shrink-0",
+                        value === item.Id ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    <div className="flex items-center justify-between flex-1 min-w-0">
+                      <span className="truncate">{item.Name}</span>
+                      {secondary && (
+                        <span className="text-xs text-gray-500 ml-2 shrink-0">{secondary}</span>
+                      )}
+                    </div>
+                  </CommandItem>
+                )
+              })}
             </CommandGroup>
           </CommandList>
         </Command>

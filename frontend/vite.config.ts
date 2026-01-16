@@ -54,6 +54,17 @@ export default defineConfig({
         changeOrigin: true,
         cookieDomainRewrite: 'localhost',
       },
+      "/accounts" : {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        cookieDomainRewrite: 'localhost',
+
+      },
+      "/paymentmethods" : {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        cookieDomainRewrite: 'localhost',
+      },
     },
   },
 })

@@ -1,10 +1,12 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Filter, ChevronDown, Printer, Edit, DollarSign, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
-import { useInvoice, useCustomer, useTaxRate, useTaxCode } from '../contexts'
+import { Search, Filter, ChevronDown, Printer, Edit, DollarSign, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, X, Check } from 'lucide-react'
+import { useInvoice, useCustomer, useTaxRate, useTaxCode, useAccount, usePaymentMethod } from '../contexts'
 import { cn } from '../lib/utils'
 import { openThermalPrint, setCustomerLookup, setTaxRateLookup, setTaxCodeLookup } from '../utils/thermalPrint'
 import { formatDate } from '../utils/dateFormat'
+import { QBOInvoice, AccountType } from '../types'
+import { ItemCombobox } from '../components/ItemCombobox'
 
 const ITEMS_PER_PAGE = 10
 
@@ -26,6 +28,8 @@ export default function InvoicesList() {
   const { data: customers, fetchData: fetchCustomers } = useCustomer()
   const { data: taxRates, fetchData: fetchTaxRates } = useTaxRate()
   const { data: taxCodes, fetchData: fetchTaxCodes } = useTaxCode()
+  const {data: paymentMethods, fetchData: fetchPaymentMethods} = usePaymentMethod()
+  const {data: accounts, fetchData: fetchAccounts} = useAccount()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [customerFilter, setCustomerFilter] = useState<string>('all')
@@ -35,6 +39,9 @@ export default function InvoicesList() {
   const [sortField, setSortField] = useState<SortField>('date')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [updatingPayment, setUpdatingPayment] = useState<string | null>(null)
+  const [paymentModalInvoice, setPaymentModalInvoice] = useState<QBOInvoice | null>(null)
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>('')
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('')
 
   // Fetch data on mount
   useEffect(() => {
@@ -42,7 +49,9 @@ export default function InvoicesList() {
     fetchCustomers()
     fetchTaxRates()
     fetchTaxCodes()
-  }, [fetchData, fetchCustomers, fetchTaxRates, fetchTaxCodes])
+    fetchPaymentMethods()
+    fetchAccounts()
+  }, [fetchData, fetchCustomers, fetchTaxRates, fetchTaxCodes, fetchPaymentMethods, fetchAccounts])
 
   // Set up customer lookup for thermal printing
   useEffect(() => {
@@ -70,6 +79,13 @@ export default function InvoicesList() {
     const customers = new Set(qboInvoices.map(inv => inv.CustomerRef.name).filter(Boolean))
     return Array.from(customers)
   }, [qboInvoices])
+
+  // Filter accounts to only show Bank and Other Current Asset types
+  const depositAccounts = useMemo(() => {
+    return accounts.filter(account =>
+      account.AccountType === 'Bank' || account.AccountType === 'Other Current Asset'
+    )
+  }, [accounts])
 
   // Handle column sorting
   const handleSort = (field: SortField) => {
@@ -174,23 +190,47 @@ export default function InvoicesList() {
     }
   }
 
-  // Toggle payment status for an invoice
-  const handlePaymentToggle = useCallback(async (invoiceId: string, currentStatus: string, currentBalance: number, totalAmt: number) => {
-    const isPaid = currentStatus === 'paid'
-    setUpdatingPayment(invoiceId)
+  // Open payment modal for an invoice
+  const openPaymentModal = useCallback((invoice: QBOInvoice) => {
+    setPaymentModalInvoice(invoice)
+    setSelectedPaymentMethodId('')
+    setSelectedAccountId('')
+  }, [])
+
+  // Close payment modal
+  const closePaymentModal = useCallback(() => {
+    setPaymentModalInvoice(null)
+    setSelectedPaymentMethodId('')
+    setSelectedAccountId('')
+  }, [])
+
+  // Submit payment with selected payment method and account
+  const handlePaymentSubmit = useCallback(async () => {
+    if (!paymentModalInvoice || !selectedPaymentMethodId || !selectedAccountId) return
+
+    const invoice = paymentModalInvoice
+    const status = getInvoiceStatus(invoice.Balance, invoice.DueDate)
+    const isPaid = status === 'paid'
+
+    setUpdatingPayment(invoice.Id)
+    closePaymentModal()
 
     // Optimistically update the UI immediately
-    const previousBalance = currentBalance
-    updateItem(invoiceId, { Balance: isPaid ? totalAmt : 0 })
+    const previousBalance = invoice.Balance
+    updateItem(invoice.Id, { Balance: isPaid ? invoice.TotalAmt : 0 })
 
     try {
-      const response = await fetch(`/invoices/${invoiceId}/payment`, {
+      const response = await fetch(`/invoices/${invoice.Id}/payment`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ markAsPaid: !isPaid }),
+        body: JSON.stringify({
+          markAsPaid: !isPaid,
+          paymentMethodId: selectedPaymentMethodId,
+          depositToAccountId: selectedAccountId
+        }),
       })
 
       if (!response.ok) {
@@ -199,13 +239,13 @@ export default function InvoicesList() {
       }
     } catch (error) {
       // Revert optimistic update on error
-      updateItem(invoiceId, { Balance: previousBalance })
+      updateItem(invoice.Id, { Balance: previousBalance })
       console.error('Error toggling payment status:', error)
       alert(error instanceof Error ? error.message : 'Failed to update payment status')
     } finally {
       setUpdatingPayment(null)
     }
-  }, [updateItem])
+  }, [paymentModalInvoice, selectedPaymentMethodId, selectedAccountId, updateItem, closePaymentModal])
 
 
   // Show loading state
@@ -485,27 +525,31 @@ export default function InvoicesList() {
                             <Edit className="h-4 w-4" />
                             <span className="text-xs">Edit</span>
                           </button>
-                          <button
-                            onClick={() => handlePaymentToggle(invoice.Id, status, invoice.Balance, invoice.TotalAmt)}
-                            disabled={updatingPayment === invoice.Id}
-                            className={cn(
-                              "inline-flex items-center gap-1 px-3 py-1.5 rounded transition-colors",
-                              status === 'paid'
-                                ? "text-orange-600 hover:text-orange-800 hover:bg-orange-50"
-                                : "text-purple-600 hover:text-purple-800 hover:bg-purple-50",
-                              updatingPayment === invoice.Id && "opacity-50 cursor-not-allowed"
-                            )}
-                            title={status === 'paid' ? "Mark as Unpaid" : "Mark as Paid"}
-                          >
-                            <DollarSign className="h-4 w-4" />
-                            <span className="text-xs">
-                              {updatingPayment === invoice.Id
-                                ? 'Updating...'
-                                : status === 'paid'
-                                  ? 'Unpay'
-                                  : 'Pay'}
-                            </span>
-                          </button>
+                          {status === 'paid' ? (
+                            <div
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-green-600 cursor-default"
+                              title="Paid"
+                            >
+                              <Check className="h-4 w-4" />
+                              <span className="text-xs">Paid</span>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => openPaymentModal(invoice)}
+                              disabled={updatingPayment === invoice.Id}
+                              className={cn(
+                                "inline-flex items-center gap-1 px-3 py-1.5 rounded transition-colors",
+                                "text-purple-600 hover:text-purple-800 hover:bg-purple-50",
+                                updatingPayment === invoice.Id && "opacity-50 cursor-not-allowed"
+                              )}
+                              title="Mark as Paid"
+                            >
+                              <DollarSign className="h-4 w-4" />
+                              <span className="text-xs">
+                                {updatingPayment === invoice.Id ? 'Updating...' : 'Pay'}
+                              </span>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -588,6 +632,77 @@ export default function InvoicesList() {
           </div>
         )}
       </div>
+
+      {/* Payment Modal */}
+      {paymentModalInvoice && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Record Payment
+              </h2>
+              <button
+                onClick={closePaymentModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-sm text-gray-600">
+                Invoice #{paymentModalInvoice.DocNumber} - {paymentModalInvoice.CustomerRef.name}
+              </p>
+              <p className="text-lg font-semibold text-gray-900">
+                R {paymentModalInvoice.TotalAmt.toFixed(2)}
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Payment Method
+                </label>
+                <ItemCombobox
+                  items={paymentMethods}
+                  value={selectedPaymentMethodId}
+                  onValueChange={setSelectedPaymentMethodId}
+                  placeholder="Select payment method..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Deposit Account
+                </label>
+                <ItemCombobox<AccountType>
+                  items={depositAccounts}
+                  value={selectedAccountId}
+                  onValueChange={setSelectedAccountId}
+                  placeholder="Select account..."
+                  renderSecondary={(account) => account.AccountType}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={closePaymentModal}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePaymentSubmit}
+                disabled={!selectedPaymentMethodId || !selectedAccountId}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Record Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

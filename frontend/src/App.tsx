@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { CustomerProvider, ItemProvider, InvoiceProvider, TaxCodeProvider, TaxRateProvider, TermProvider } from './contexts'
+import { CustomerProvider, ItemProvider, InvoiceProvider, TaxCodeProvider, TaxRateProvider, TermProvider, PaymentMethodProvider, AccountProvider } from './contexts'
 import InvoicesList from './pages/InvoicesList'
 import CreateInvoice from './pages/CreateInvoice'
 import PrivacyPolicy from './pages/PrivacyPolicy'
@@ -14,6 +14,8 @@ function App() {
             <TaxRateProvider>
               <TermProvider>
                 <InvoiceProvider>
+                  <PaymentMethodProvider>
+                    <AccountProvider>
                   <div className="min-h-screen">
                     <Routes>
                       <Route path="/" element={<Navigate to="/home" replace />} />
@@ -24,6 +26,8 @@ function App() {
                       <Route path="/end-user-agreement" element={<EndUserAgreement />} />
                     </Routes>
                   </div>
+                  </AccountProvider>
+                  </PaymentMethodProvider>                  
                 </InvoiceProvider>
               </TermProvider>
             </TaxRateProvider>
