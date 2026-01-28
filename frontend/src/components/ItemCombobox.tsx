@@ -18,6 +18,7 @@ import {
 interface ComboboxItem {
   Id: string
   Name: string
+  Description?: string
   Sku?: string
   Type?: string
   FullyQualifiedName?: string
@@ -108,7 +109,7 @@ export function ItemCombobox<T extends ComboboxItem>({ items, value, onValueChan
                   return (
                     <CommandItem
                       key={item.Id}
-                      value={item.Name}
+                      value={`${item.Name} ${item.Description || ''}`}
                       onSelect={() => {
                         onValueChange(item.Id)
                         setOpen(false)
@@ -140,7 +141,7 @@ export function ItemCombobox<T extends ComboboxItem>({ items, value, onValueChan
                   return (
                     <CommandItem
                       key={item.Id}
-                      value={item.Name}
+                      value={`${item.Name} ${item.Description || ''}`}
                       onSelect={() => {
                         onValueChange(item.Id)
                         setOpen(false)
