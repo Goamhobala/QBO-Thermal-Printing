@@ -104,7 +104,7 @@ export function ItemCombobox<T extends ComboboxItem>({ items, value, onValueChan
       <PopoverContent className="w-full p-0 bg-white shadow-lg border border-gray-200 relative">
         <Command className="bg-white">
           <CommandInput placeholder="Search items..." className="bg-white" />
-          <CommandList className="bg-white">
+          <CommandList className="bg-white max-h-60 overflow-y-auto">
             <CommandEmpty className="bg-white">No item found.</CommandEmpty>
             {/* Uncategorized items first */}
             {groupedItems.uncategorized.length > 0 && (
