@@ -15,6 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+
 interface ComboboxItem {
   Id: string
   Name: string
@@ -35,6 +36,7 @@ interface ItemComboboxProps<T extends ComboboxItem> {
 
 export function ItemCombobox<T extends ComboboxItem>({ items, value, onValueChange, disabled, placeholder = "Select item...", renderSecondary }: ItemComboboxProps<T>) {
   const [open, setOpen] = useState(false)
+  const [hoveredItem, setHoveredItem] = useState<T | null>(null)
 
   const selectedItem = items.find((item) => item.Id === value)
 
@@ -83,7 +85,10 @@ export function ItemCombobox<T extends ComboboxItem>({ items, value, onValueChan
   }, [items])
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(isOpen) => {
+      setOpen(isOpen)
+      if (!isOpen) setHoveredItem(null)
+    }}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -96,7 +101,7 @@ export function ItemCombobox<T extends ComboboxItem>({ items, value, onValueChan
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0 bg-white shadow-lg border border-gray-200">
+      <PopoverContent className="w-full p-0 bg-white shadow-lg border border-gray-200 relative">
         <Command className="bg-white">
           <CommandInput placeholder="Search items..." className="bg-white" />
           <CommandList className="bg-white">
@@ -114,6 +119,8 @@ export function ItemCombobox<T extends ComboboxItem>({ items, value, onValueChan
                         onValueChange(item.Id)
                         setOpen(false)
                       }}
+                      onMouseEnter={() => setHoveredItem(item)}
+                      onMouseLeave={() => setHoveredItem(null)}
                       className="bg-white hover:bg-gray-100"
                     >
                       <Check
@@ -146,6 +153,8 @@ export function ItemCombobox<T extends ComboboxItem>({ items, value, onValueChan
                         onValueChange(item.Id)
                         setOpen(false)
                       }}
+                      onMouseEnter={() => setHoveredItem(item)}
+                      onMouseLeave={() => setHoveredItem(null)}
                       className="bg-white hover:bg-gray-100"
                     >
                       <Check
@@ -167,6 +176,13 @@ export function ItemCombobox<T extends ComboboxItem>({ items, value, onValueChan
             ))}
           </CommandList>
         </Command>
+        {/* Description tooltip - floating to the right */}
+        {hoveredItem?.Description && (
+          <div className="absolute left-full bg-white top-[40%] ml-2 w-48 z-50 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95">
+            <p className="font-medium mb-1">{hoveredItem.Name}</p>
+            <p>{hoveredItem.Description}</p>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   )
